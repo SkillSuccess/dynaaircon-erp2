@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DynaAircon ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --navy:#0A1628;--navy-mid:#0F2040;--navy-light:#1A3060;
+  --sky:#1E90FF;--sky-light:#4DAEFF;--sky-glow:rgba(30,144,255,0.18);
+  --white:#fff;--muted:#8BA8CC;--border:rgba(30,144,255,0.15);
+  --glass:rgba(15,32,64,0.7);--success:#00C896;--warning:#FFB830;--danger:#FF4D6A;
+  --card-bg:rgba(26,48,96,0.45);--sidebar-w:260px;--topbar-h:64px;
+  --radius:14px;--shadow:0 8px 32px rgba(0,0,0,0.35);
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-body);background:var(--navy);color:var(--white);min-height:100vh;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;border:none;outline:none;font-family:var(--font-body)}
+input,select,textarea{font-family:var(--font-body);outline:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--navy)}
+::-webkit-scrollbar-thumb{background:var(--navy-light);border-radius:10px}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(30,144,255,0.12) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%,rgba(30,144,255,0.08) 0%,transparent 60%);
+  pointer-events:none;z-index:0}
+
+/* ── CONNECTION BAR ── */
+#conn-bar{position:fixed;top:0;left:0;right:0;z-index:999;height:36px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px;font-weight:600;transition:all .4s}
+#conn-bar.connected{background:rgba(0,200,150,.15);border-bottom:1px solid rgba(0,200,150,.3)}
+#conn-bar.disconnected{background:rgba(255,77,106,.15);border-bottom:1px solid rgba(255,77,106,.3)}
+#conn-bar.checking{background:rgba(255,184,48,.1);border-bottom:1px solid rgba(255,184,48,.2)}
+#conn-bar.hidden{display:none}
+.conn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.conn-dot.ok{background:#00C896;box-shadow:0 0 8px #00C896;animation:dp 2s infinite}
+.conn-dot.err{background:#FF4D6A;box-shadow:0 0 8px #FF4D6A}
+.conn-dot.spin{background:#FFB830;animation:dp 1s infinite}
+@keyframes dp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+#conn-bar .conn-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:3px 10px;font-size:11px;color:#fff;cursor:pointer}
+#conn-time{font-size:11px;color:var(--muted)}
+body.bar-on #app{margin-top:36px}
+body.bar-on #topbar{top:36px}
+
+/* ── LAYOUT ── */
+#app{display:flex;min-height:100vh;position:relative;z-index:1}
+#sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,var(--navy-mid) 0%,var(--navy) 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s cubic-bezier(.4,0,.2,1);overflow-y:auto}
+.sidebar-logo{padding:24px 20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--sky),var(--sky-light));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 0 20px rgba(30,144,255,0.4)}
+.logo-text strong{font-family:var(--font-head);font-size:16px;font-weight:800;background:linear-gradient(90deg,var(--white),var(--sky-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block}
+.logo-text span{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+
+#sidebar-conn{display:flex;align-items:center;gap:8px;padding:10px 16px;margin:8px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .2s}
+#sidebar-conn.connected{background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.2);color:var(--success)}
+#sidebar-conn.disconnected{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.2);color:var(--danger)}
+#sidebar-conn.checking{background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.2);color:var(--warning)}
+#sidebar-conn.no-url{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--muted)}
+.sc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sc-dot.ok{background:var(--success);animation:dp 2s infinite}
+.sc-dot.err{background:var(--danger)}
+.sc-dot.warn{background:var(--warning);animation:dp 1s infinite}
+
+.sidebar-section{padding:16px 12px 6px;font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 16px;border-radius:10px;margin:2px 8px;cursor:pointer;transition:all .2s;font-size:13.5px;font-weight:500;color:var(--muted)}
+.nav-item:hover{background:var(--sky-glow);color:var(--white)}
+.nav-item.active{background:linear-gradient(90deg,rgba(30,144,255,0.25),rgba(30,144,255,0.08));color:var(--sky-light);border-left:2px solid var(--sky);margin-left:6px;padding-left:14px}
+.nav-item .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+
+#main{margin-left:var(--sidebar-w);flex:1;min-height:100vh;display:flex;flex-direction:column;transition:margin-left .3s}
+#topbar{height:var(--topbar-h);background:var(--glass);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;position:sticky;top:0;z-index:90}
+#topbar .page-title{font-family:var(--font-head);font-size:18px;font-weight:700;flex:1}
+.topbar-search{display:flex;align-items:center;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:8px 14px;gap:8px}
+.topbar-search input{background:transparent;border:none;color:var(--white);font-size:13px;width:180px}
+.topbar-search input::placeholder{color:var(--muted)}
+.topbar-btn{width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,0.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);cursor:pointer;transition:all .2s}
+.topbar-btn:hover{background:var(--sky-glow);color:var(--sky-light);border-color:var(--sky)}
+#sync-btn{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--muted);transition:all .2s}
+#sync-btn:hover{border-color:var(--sky);color:var(--sky-light);background:var(--sky-glow)}
+#sync-btn.syncing .sync-icon{animation:spin .7s linear infinite}
+#sync-btn.connected-sync{border-color:rgba(0,200,150,.3);color:var(--success);background:rgba(0,200,150,.08)}
+.topbar-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--sky),var(--navy-light));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;cursor:pointer;border:2px solid var(--sky);box-shadow:0 0 12px rgba(30,144,255,0.3)}
+#content{flex:1;padding:28px;overflow-y:auto}
+
+/* ── CARDS ── */
+.card{background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.4)}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.section-header h2{font-family:var(--font-head);font-size:20px;font-weight:700}
+.section-header p{color:var(--muted);font-size:13px;margin-top:2px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;transition:all .25s}
+.stat-card::before{content:'';position:absolute;top:-30px;right:-30px;width:90px;height:90px;border-radius:50%;opacity:.08}
+.stat-card.blue::before{background:var(--sky)}.stat-card.green::before{background:var(--success)}.stat-card.orange::before{background:var(--warning)}.stat-card.red::before{background:var(--danger)}
+.stat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.stat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.stat-icon.blue{background:rgba(30,144,255,.15);color:var(--sky-light)}.stat-icon.green{background:rgba(0,200,150,.15);color:var(--success)}.stat-icon.orange{background:rgba(255,184,48,.15);color:var(--warning)}.stat-icon.red{background:rgba(255,77,106,.15);color:var(--danger)}
+.stat-value{font-family:var(--font-head);font-size:26px;font-weight:800;line-height:1}
+.stat-label{font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.stat-trend{font-size:12px}.trend-up{color:var(--success)}.trend-dn{color:var(--danger)}
+
+/* ── TABLES ── */
+.table-wrap{overflow-x:auto;border-radius:10px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:rgba(30,144,255,.08)}
+thead th{padding:12px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background .15s}
+tbody tr:hover{background:rgba(30,144,255,.06)}
+tbody td{padding:12px 14px;font-size:13.5px;color:rgba(255,255,255,.87)}
+.td-light{color:var(--muted);font-size:12.5px}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-success{background:rgba(0,200,150,.15);color:var(--success)}.badge-warning{background:rgba(255,184,48,.15);color:var(--warning)}.badge-danger{background:rgba(255,77,106,.15);color:var(--danger)}.badge-info{background:rgba(30,144,255,.15);color:var(--sky-light)}.badge-muted{background:rgba(139,168,204,.1);color:var(--muted)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:9px;font-size:13.5px;font-weight:600;transition:all .2s;cursor:pointer;border:none}
+.btn-primary{background:linear-gradient(135deg,var(--sky),#0066DD);color:#fff;box-shadow:0 4px 15px rgba(30,144,255,.35)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,144,255,.5)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--sky);color:var(--sky-light);background:var(--sky-glow)}
+.btn-success{background:linear-gradient(135deg,var(--success),#009E72);color:#fff}
+.btn-danger{background:linear-gradient(135deg,var(--danger),#CC0030);color:#fff}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:7px}
+.btn-icon{width:34px;height:34px;padding:0;border-radius:8px;justify-content:center}
+
+/* ── FORMS ── */
+.form-group{display:flex;flex-direction:column;gap:7px;margin-bottom:18px}
+.form-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.form-control{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--white);font-size:14px;transition:border .2s,box-shadow .2s}
+.form-control:focus{border-color:var(--sky);box-shadow:0 0 0 3px rgba(30,144,255,.12);background:rgba(255,255,255,.07)}
+.form-control::placeholder{color:rgba(139,168,204,.5)}
+select.form-control{background:rgba(15,32,64,.95)}
+select.form-control option{background:#0F2040;color:var(--white)}
+select option{background:#0F2040 !important;color:#fff !important}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--navy-mid);border:1px solid var(--border);border-radius:18px;width:min(700px,95vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:modalIn .25s cubic-bezier(.34,1.56,.64,1)}
+@keyframes modalIn{from{transform:scale(.92) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:22px 26px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-header h3{font-family:var(--font-head);font-size:17px;font-weight:700}
+.modal-close{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--muted);transition:all .2s}
+.modal-close:hover{background:var(--danger);color:#fff;border-color:var(--danger)}
+.modal-body{padding:24px 26px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 26px;border-top:1px solid var(--border);display:flex;gap:12px;justify-content:flex-end;flex-shrink:0}
+
+/* ── TOAST ── */
+#toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:9999;pointer-events:none}
+.toast{background:var(--navy-mid);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;min-width:280px;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:toastIn .3s cubic-bezier(.34,1.56,.64,1);pointer-events:all}
+@keyframes toastIn{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast-icon{font-size:20px;flex-shrink:0}.toast-msg{font-size:13.5px;font-weight:500}
+.toast.success .toast-icon{color:var(--success)}.toast.error .toast-icon{color:var(--danger)}.toast.info .toast-icon{color:var(--sky-light)}.toast.warn .toast-icon{color:var(--warning)}
+
+/* ── INVOICE ── */
+.invoice-paper{background:#fff;color:#1a1a2e;border-radius:12px;padding:40px;font-family:var(--font-body);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.inv-header{display:flex;justify-content:space-between;margin-bottom:30px;padding-bottom:24px;border-bottom:2px solid #0A1628}
+.inv-logo-area{display:flex;align-items:center;gap:14px}
+.inv-logo-box{width:52px;height:52px;background:linear-gradient(135deg,#1E90FF,#0066DD);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+.inv-co-name{font-family:var(--font-head);font-size:22px;font-weight:800;color:#0A1628}
+.inv-co-sub{font-size:11px;color:#666;letter-spacing:.5px;text-transform:uppercase}
+.inv-meta{text-align:right}
+.inv-title{font-family:var(--font-head);font-size:26px;font-weight:800;color:#1E90FF;letter-spacing:2px}
+.inv-number{font-size:13px;color:#555;margin-top:4px}
+.inv-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+.inv-info-box h4{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.inv-info-box p{font-size:13.5px;line-height:1.7}
+.inv-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}
+.inv-table thead{background:#0A1628;color:#fff}
+.inv-table thead th{padding:10px 12px;text-align:left;font-size:11px;letter-spacing:.5px}
+.inv-table tbody tr:nth-child(even){background:#f7f9ff}
+.inv-table tbody td{padding:10px 12px;border-bottom:1px solid #e8ecf5}
+.inv-totals{display:flex;justify-content:flex-end;margin-bottom:24px}
+.inv-totals-box{min-width:220px}
+.inv-total-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #eee}
+.inv-grand-total{display:flex;justify-content:space-between;padding:10px 0;font-weight:800;font-size:16px;border-top:2px solid #0A1628;color:#0A1628;margin-top:4px}
+.inv-footer{display:flex;justify-content:space-between;align-items:flex-end;padding-top:24px;border-top:1px dashed #ccc;margin-top:10px}
+.inv-sign-area{text-align:center;min-width:150px}
+.inv-sign-line{border-top:1px solid #aaa;padding-top:6px;font-size:12px;color:#777;margin-top:40px}
+.inv-tnc{font-size:11px;color:#888;max-width:300px;line-height:1.6}
+.inv-stamp{width:70px;height:70px;border-radius:50%;border:3px solid #1E90FF;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#1E90FF;font-size:10px;font-weight:700;text-align:center;transform:rotate(-15deg)}
+
+/* ── ITEMS TABLE ── */
+.items-table{width:100%;border-collapse:collapse;margin-top:8px}
+.items-table th{padding:9px 10px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:rgba(30,144,255,.06);border-bottom:1px solid var(--border)}
+.items-table td{padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.items-table input{background:rgba(15,32,64,.95);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--white);font-size:13px;width:100%}
+.items-table input:focus{border-color:var(--sky);outline:none;background:rgba(15,32,64,.95)}
+.items-table select{background:rgba(15,32,64,.95);border:1px solid var(--border);border-radius:7px;padding:7px 8px;color:var(--white);font-size:13px;width:100%}
+.items-table select:focus{border-color:var(--sky);outline:none;background:rgba(15,32,64,.95)}
+.items-table select option{background:#0F2040;color:#fff}
+.del-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,77,106,.12);color:var(--danger);border:1px solid rgba(255,77,106,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s;margin:0 auto}
+.del-btn:hover{background:var(--danger);color:#fff}
+.gst-summary{background:rgba(30,144,255,.06);border:1px solid var(--border);border-radius:10px;padding:16px 20px}
+.gst-row{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+.gst-row.grand{border-top:1px solid var(--border);margin-top:8px;padding-top:12px;font-family:var(--font-head);font-size:18px;font-weight:800;color:var(--sky-light)}
+
+/* ── CHARTS ── */
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding:10px 0}
+.chart-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.chart-bar{width:100%;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--sky-light),var(--sky));min-height:4px;box-shadow:0 0 10px rgba(30,144,255,.3)}
+.chart-bar-label{font-size:10px;color:var(--muted);text-transform:uppercase}
+.chart-bar-val{font-size:11px;color:var(--sky-light);font-weight:600}
+.donut-wrap{display:flex;align-items:center;gap:24px}
+.donut-legend{display:flex;flex-direction:column;gap:10px}
+.legend-item{display:flex;align-items:center;gap:10px;font-size:13px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ── PAGE SECTIONS ── */
+.page-section{display:none}
+.page-section.active{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── AMC CARD ── */
+.amc-card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:12px;transition:all .2s}
+.amc-card:hover{border-color:var(--sky);transform:translateY(-2px)}
+.amc-progress{height:5px;background:rgba(255,255,255,.08);border-radius:10px;overflow:hidden}
+.amc-progress-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--sky),var(--sky-light))}
+.amc-progress-fill.warn{background:linear-gradient(90deg,var(--warning),#FF9500)}
+.amc-progress-fill.danger{background:linear-gradient(90deg,var(--danger),#FF1744)}
+
+/* ── TECH CARD ── */
+.tech-card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;align-items:center;gap:16px;transition:all .2s}
+.tech-card:hover{border-color:var(--sky);transform:translateY(-2px)}
+.tech-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--sky),var(--navy-light));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;border:2px solid rgba(30,144,255,.3)}
+.tech-info{flex:1}
+.tech-name{font-weight:600;font-size:14px}
+.tech-role{font-size:12px;color:var(--muted);margin-top:2px}
+.tech-stats{display:flex;gap:14px;margin-top:8px}
+.tech-stat{font-size:12px;color:var(--muted)}
+.tech-stat strong{color:var(--white)}
+
+/* ── PAY ITEM ── */
+.pay-item{display:flex;align-items:center;gap:14px;padding:14px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;transition:all .2s}
+.pay-item:hover{background:rgba(30,144,255,.06);border-color:var(--sky)}
+.pay-amount{font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--sky-light)}
+
+/* ── SPINNER / LOADER ── */
+.spinner{width:36px;height:36px;border:3px solid rgba(30,144,255,.15);border-top-color:var(--sky);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-overlay{position:fixed;inset:0;background:rgba(10,22,40,.85);display:none;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
+.loader-overlay.show{display:flex}
+.loader-text{color:var(--muted);font-size:14px}
+
+/* ── MOBILE ── */
+#menu-toggle{display:none;width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid var(--border);align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:var(--white)}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
+#sidebar-overlay.show{display:block}
+
+@media(max-width:900px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.mobile-open{transform:translateX(0)}
+  #main{margin-left:0}
+  #menu-toggle{display:flex}
+  .form-row,.form-row-3,.grid-2,.grid-3{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  #content{padding:16px}
+  .inv-header,.inv-info-grid,.inv-footer{flex-direction:column;gap:16px}
+  .inv-info-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr}.topbar-search{display:none}}
+</style>
+</head>
+<body>
+
+<!-- CONNECTION BAR -->
+<div id="conn-bar" class="hidden">
+  <div class="conn-dot" id="bar-dot"></div>
+  <span id="bar-text"></span>
+  <span id="conn-time"></span>
+  <button class="conn-btn" onclick="manualSync()">🔄 Sync</button>
+  <button class="conn-btn" onclick="document.getElementById('conn-bar').classList.add('hidden');document.body.classList.remove('bar-on')">✕</button>
+</div>
+
+<div class="loader-overlay show" id="loader">
+  <div class="spinner"></div>
+  <span class="loader-text">Loading DynaAircon ERP...</span>
+</div>
+<div id="toast-container"></div>
+<div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">❄️</div>
+      <div class="logo-text"><strong>DynaAircon</strong><span>ERP v2.0</span></div>
+    </div>
+    <div id="sidebar-conn" class="no-url" onclick="showPage('settings',null)" title="Settings">
+      <div class="sc-dot warn" id="sc-dot"></div>
+      <div style="flex:1"><div id="sc-text" style="font-weight:600">Not Connected</div><div id="sc-sub" style="font-size:10px;margin-top:1px;opacity:.7">Settings mein URL daalo</div></div>
+      <span style="font-size:10px;opacity:.5">→</span>
+    </div>
+    <div class="sidebar-section">Main Menu</div>
+    <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="showPage('invoice',this)"><span class="nav-icon">🧾</span>Invoice Generator</div>
+    <div class="nav-item" onclick="showPage('quotation',this)"><span class="nav-icon">📋</span>Quotation</div>
+    <div class="sidebar-section">Management</div>
+    <div class="nav-item" onclick="showPage('customers',this)"><span class="nav-icon">👥</span>Customers</div>
+    <div class="nav-item" onclick="showPage('products',this)"><span class="nav-icon">📦</span>Products</div>
+    <div class="nav-item" onclick="showPage('services',this)"><span class="nav-icon">🔧</span>Services<span class="nav-badge" id="svc-badge">0</span></div>
+    <div class="nav-item" onclick="showPage('amc',this)"><span class="nav-icon">📑</span>AMC</div>
+    <div class="nav-item" onclick="showPage('technician',this)"><span class="nav-icon">👷</span>Technicians</div>
+    <div class="sidebar-section">Finance</div>
+    <div class="nav-item" onclick="showPage('payments',this)"><span class="nav-icon">💳</span>Payments</div>
+    <div class="nav-item" onclick="showPage('gst',this)"><span class="nav-icon">🏛️</span>GST Billing</div>
+    <div class="nav-item" onclick="showPage('reports',this)"><span class="nav-icon">📈</span>Reports</div>
+    <div class="sidebar-section">System</div>
+    <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span>Settings</div>
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+    <header id="topbar">
+      <button id="menu-toggle" onclick="toggleMobileSidebar()">☰</button>
+      <span class="page-title" id="page-title-text">Dashboard</span>
+      <div class="topbar-search"><span style="color:var(--muted)">🔍</span><input type="text" placeholder="Search..." id="global-search"/></div>
+      <button id="sync-btn" onclick="manualSync()"><span class="sync-icon">🔄</span><span id="sync-label">Sync</span></button>
+      <button class="topbar-btn">🔔</button>
+      <div class="topbar-avatar">DA</div>
+    </header>
+
+    <div id="content">
+
+      <!-- DASHBOARD -->
+      <section class="page-section active" id="page-dashboard">
+        <div class="section-header">
+          <div><h2>Welcome back, Admin 👋</h2><p id="dash-date"></p></div>
+          <button class="btn btn-primary btn-sm" onclick="showPage('invoice',document.querySelectorAll('.nav-item')[1])">+ New Invoice</button>
+        </div>
+        <div id="dash-conn-card" style="margin-bottom:20px;display:none">
+          <div id="dash-conn-inner" style="border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div id="dash-conn-icon" style="font-size:24px"></div>
+            <div style="flex:1"><div id="dash-conn-title" style="font-weight:700;font-size:14px"></div><div id="dash-conn-sub" style="font-size:12px;opacity:.75;margin-top:2px"></div></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" onclick="manualSync()">🔄 Refresh</button>
+              <button class="btn btn-primary btn-sm" onclick="showPage('settings',null)">⚙️ Settings</button>
+            </div>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card blue"><div class="stat-icon blue">👥</div><div class="stat-value" id="stat-customers">0</div><div class="stat-label">Customers</div><div class="stat-trend trend-up">Total</div></div>
+          <div class="stat-card green"><div class="stat-icon green">🧾</div><div class="stat-value" id="stat-invoices">0</div><div class="stat-label">Invoices</div><div class="stat-trend trend-up">Total</div></div>
+          <div class="stat-card orange"><div class="stat-icon orange">⏳</div><div class="stat-value" id="stat-pending">₹0</div><div class="stat-label">Pending</div><div class="stat-trend trend-dn">Payments</div></div>
+          <div class="stat-card red"><div class="stat-icon red">📑</div><div class="stat-value" id="stat-amc">0</div><div class="stat-label">Active AMC</div><div class="stat-trend">Contracts</div></div>
+          <div class="stat-card green"><div class="stat-icon green">💰</div><div class="stat-value" id="stat-revenue">₹0</div><div class="stat-label">Revenue</div><div class="stat-trend trend-up">This month</div></div>
+          <div class="stat-card blue"><div class="stat-icon blue">🔧</div><div class="stat-value" id="stat-service">0</div><div class="stat-label">Services</div><div class="stat-trend">Pending</div></div>
+        </div>
+        <div class="grid-2" style="margin-bottom:24px">
+          <div class="card"><div class="section-header" style="margin-bottom:16px"><div><strong style="font-family:var(--font-head)">Monthly Revenue</strong><p style="font-size:12px;color:var(--muted)">Last 6 months</p></div></div><div class="chart-bars" id="revenue-chart"></div></div>
+          <div class="card"><div class="section-header" style="margin-bottom:16px"><div><strong style="font-family:var(--font-head)">Service Breakdown</strong><p style="font-size:12px;color:var(--muted)">Current month</p></div></div><div class="donut-wrap"><svg width="120" height="120" viewBox="0 0 120 120" id="donut-svg"></svg><div class="donut-legend" id="donut-legend"></div></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card"><div class="section-header"><div><strong style="font-family:var(--font-head)">Recent Invoices</strong></div><button class="btn btn-outline btn-sm" onclick="showPage('invoicelist',null)">View All</button></div><div class="table-wrap"><table><thead><tr><th>Invoice#</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dash-invoice-tbody"></tbody></table></div></div>
+          <div class="card"><div class="section-header"><div><strong style="font-family:var(--font-head)">Pending Services</strong></div><button class="btn btn-outline btn-sm" onclick="showPage('services',null)">View All</button></div><div class="table-wrap"><table><thead><tr><th>Service</th><th>Technician</th><th>Status</th></tr></thead><tbody id="dash-service-tbody"></tbody></table></div></div>
+        </div>
+      </section>
+
+      <!-- INVOICE GENERATOR -->
+      <section class="page-section" id="page-invoice">
+        <div class="section-header">
+          <div><h2>Invoice Generator</h2><p>GST invoices banao</p></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-outline btn-sm" onclick="showPage('invoicelist',null)">📋 History</button>
+            <button class="btn btn-primary btn-sm" onclick="resetInvoice()">+ New</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Invoice Number</label><input class="form-control" id="inv-number" readonly style="opacity:.7"/></div>
+              <div class="form-group"><label class="form-label">Invoice Date</label><input class="form-control" type="date" id="inv-date"/></div>
+            </div>
+            <div class="form-group"><label class="form-label">Customer *</label><select class="form-control" id="inv-customer" onchange="fillCustomer()"><option value="">— Select Customer —</option></select></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Mobile</label><input class="form-control" id="inv-mobile" placeholder="Mobile"/></div>
+              <div class="form-group"><label class="form-label">GST Number</label><input class="form-control" id="inv-gst" placeholder="GSTIN"/></div>
+            </div>
+            <div class="form-group"><label class="form-label">Address</label><textarea class="form-control" id="inv-address" rows="2" placeholder="Address"></textarea></div>
+            <div class="form-group">
+              <label class="form-label">Items / Products</label>
+              <div style="overflow-x:auto">
+                <table class="items-table">
+                  <thead><tr><th>Product/Service</th><th style="width:65px">Qty</th><th style="width:100px">Rate (₹)</th><th style="width:75px">GST%</th><th style="width:90px">Total</th><th style="width:36px"></th></tr></thead>
+                  <tbody id="items-tbody"></tbody>
+                </table>
+              </div>
+              <button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="addItem()">+ Add Item</button>
+            </div>
+            <div class="gst-summary">
+              <div class="gst-row"><span>Subtotal</span><span id="inv-subtotal">₹0.00</span></div>
+              <div class="gst-row"><span>CGST</span><span id="inv-cgst">₹0.00</span></div>
+              <div class="gst-row"><span>SGST</span><span id="inv-sgst">₹0.00</span></div>
+              <div class="gst-row grand"><span>Grand Total</span><span id="inv-grand">₹0.00</span></div>
+            </div>
+            <div class="form-group" style="margin-top:16px"><label class="form-label">Payment Status</label><select class="form-control" id="inv-status"><option>Pending</option><option>Paid</option><option>Partial</option></select></div>
+            <div style="display:flex;gap:10px;margin-top:4px">
+              <button class="btn btn-primary" style="flex:1" onclick="saveAndPreviewInvoice()">💾 Save & Preview</button>
+              <button class="btn btn-outline" onclick="resetInvoice()">↺ Reset</button>
+            </div>
+          </div>
+          <div>
+            <div style="position:sticky;top:80px">
+              <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                <button class="btn btn-success btn-sm" onclick="printInvoice()">🖨️ Print</button>
+                <button class="btn btn-primary btn-sm" onclick="downloadPDF()">⬇️ PDF</button>
+                <button class="btn btn-outline btn-sm" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25d366" onclick="shareWhatsApp()">📲 WhatsApp</button>
+              </div>
+              <div class="invoice-paper" id="invoice-preview"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVOICE LIST -->
+      <section class="page-section" id="page-invoicelist">
+        <div class="section-header"><div><h2>Invoice History</h2></div><button class="btn btn-primary btn-sm" onclick="showPage('invoice',null)">+ New Invoice</button></div>
+        <div class="card">
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <input class="form-control" style="flex:1;min-width:200px" placeholder="🔍 Search..." oninput="filterInvoices(this.value)"/>
+            <select class="form-control" style="width:160px" onchange="filterByStatus(this.value)"><option value="">All Status</option><option>Paid</option><option>Pending</option><option>Partial</option></select>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Invoice#</th><th>Date</th><th>Customer</th><th>Subtotal</th><th>GST</th><th>Grand Total</th><th>Status</th><th>Actions</th></tr></thead><tbody id="invoice-list-tbody"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- QUOTATION -->
+      <section class="page-section" id="page-quotation">
+        <div class="section-header"><div><h2>Quotation Generator</h2></div><button class="btn btn-primary btn-sm" onclick="resetQuotation()">+ New</button></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Quotation #</label><input class="form-control" id="quot-number" readonly style="opacity:.7"/></div>
+              <div class="form-group"><label class="form-label">Valid Until</label><input class="form-control" type="date" id="quot-validity"/></div>
+            </div>
+            <div class="form-group"><label class="form-label">Customer *</label><input class="form-control" id="quot-customer" placeholder="Customer Name"/></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Mobile</label><input class="form-control" id="quot-mobile"/></div>
+              <div class="form-group"><label class="form-label">Site</label><input class="form-control" id="quot-site"/></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Items</label>
+              <table class="items-table"><thead><tr><th>Description</th><th style="width:65px">Qty</th><th style="width:100px">Rate</th><th style="width:90px">Total</th><th style="width:36px"></th></tr></thead><tbody id="quot-tbody"></tbody></table>
+              <button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="addQuotItem()">+ Add Item</button>
+            </div>
+            <div class="gst-summary">
+              <div class="gst-row"><span>Subtotal</span><span id="quot-sub">₹0.00</span></div>
+              <div class="gst-row"><span>GST (18%)</span><span id="quot-gst-amt">₹0.00</span></div>
+              <div class="gst-row grand"><span>Grand Total</span><span id="quot-grand">₹0.00</span></div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="btn btn-primary" style="flex:1" onclick="saveQuotation()">💾 Save</button>
+              <button class="btn btn-success btn-sm" onclick="convertToInvoice()">→ Invoice</button>
+            </div>
+          </div>
+          <div class="card">
+            <strong style="font-family:var(--font-head);font-size:15px">Saved Quotations</strong>
+            <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Quot#</th><th>Customer</th><th>Amount</th><th>Valid</th><th>Status</th><th>Act</th></tr></thead><tbody id="quot-list-tbody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CUSTOMERS -->
+      <section class="page-section" id="page-customers">
+        <div class="section-header"><div><h2>Customer Management</h2></div><button class="btn btn-primary btn-sm" onclick="openModal('customer-modal')">+ Add Customer</button></div>
+        <div class="card">
+          <input class="form-control" style="margin-bottom:16px;max-width:320px" placeholder="🔍 Search..." oninput="searchCustomers(this.value)"/>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Mobile</th><th>Email</th><th>GST</th><th>Site</th><th>Actions</th></tr></thead><tbody id="customer-tbody"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- PRODUCTS -->
+      <section class="page-section" id="page-products">
+        <div class="section-header"><div><h2>Product Management</h2></div><button class="btn btn-primary btn-sm" onclick="openModal('product-modal')">+ Add Product</button></div>
+        <div class="card">
+          <input class="form-control" style="margin-bottom:16px;max-width:320px" placeholder="🔍 Search..." oninput="searchProducts(this.value)"/>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Brand</th><th>Category</th><th>Price</th><th>GST%</th><th>Stock</th><th>Actions</th></tr></thead><tbody id="product-tbody"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- SERVICES -->
+      <section class="page-section" id="page-services">
+        <div class="section-header"><div><h2>Service Management</h2></div><button class="btn btn-primary btn-sm" onclick="openModal('service-modal')">+ Add Service</button></div>
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+          <div class="stat-card blue"><div class="stat-icon blue">🔧</div><div class="stat-value" id="svc-total">0</div><div class="stat-label">Total</div></div>
+          <div class="stat-card orange"><div class="stat-icon orange">⏳</div><div class="stat-value" id="svc-pending">0</div><div class="stat-label">Pending</div></div>
+          <div class="stat-card green"><div class="stat-icon green">✅</div><div class="stat-value" id="svc-done">0</div><div class="stat-label">Completed</div></div>
+        </div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Service</th><th>Customer</th><th>Technician</th><th>Date</th><th>Charge</th><th>Status</th><th>Actions</th></tr></thead><tbody id="service-tbody"></tbody></table></div></div>
+      </section>
+
+      <!-- AMC -->
+      <section class="page-section" id="page-amc">
+        <div class="section-header"><div><h2>AMC Management</h2></div><button class="btn btn-primary btn-sm" onclick="openModal('amc-modal')">+ Add AMC</button></div>
+        <div id="amc-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+      </section>
+
+      <!-- TECHNICIAN -->
+      <section class="page-section" id="page-technician">
+        <div class="section-header"><div><h2>Technician Assignment</h2></div><button class="btn btn-primary btn-sm" onclick="openModal('tech-modal')">+ Add Technician</button></div>
+        <div id="tech-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px"></div>
+        <div class="card"><strong style="font-family:var(--font-head);font-size:15px">Active Assignments</strong><div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Technician</th><th>Service</th><th>Customer</th><th>Date</th><th>Status</th></tr></thead><tbody id="assign-tbody"></tbody></table></div></div>
+      </section>
+
+      <!-- PAYMENTS -->
+      <section class="page-section" id="page-payments">
+        <div class="section-header"><div><h2>Payment Tracking</h2></div></div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+          <div class="stat-card green"><div class="stat-icon green">💰</div><div class="stat-value" id="pay-total">₹0</div><div class="stat-label">Collected</div></div>
+          <div class="stat-card orange"><div class="stat-icon orange">⏳</div><div class="stat-value" id="pay-pending">₹0</div><div class="stat-label">Pending</div></div>
+          <div class="stat-card red"><div class="stat-icon red">❌</div><div class="stat-value">₹0</div><div class="stat-label">Overdue</div></div>
+          <div class="stat-card blue"><div class="stat-icon blue">📊</div><div class="stat-value" id="pay-rate">0%</div><div class="stat-label">Collection Rate</div></div>
+        </div>
+        <div class="card"><strong style="font-family:var(--font-head);font-size:15px">Payment Ledger</strong><div id="payment-list" style="margin-top:16px"></div></div>
+      </section>
+
+      <!-- GST -->
+      <section class="page-section" id="page-gst">
+        <div class="section-header"><div><h2>GST Billing</h2></div></div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+          <div class="stat-card blue"><div class="stat-icon blue">🏛️</div><div class="stat-value" id="gst-total">₹0</div><div class="stat-label">Total GST</div></div>
+          <div class="stat-card green"><div class="stat-icon green">📤</div><div class="stat-value" id="gst-cgst">₹0</div><div class="stat-label">CGST</div></div>
+          <div class="stat-card green"><div class="stat-icon green">📥</div><div class="stat-value" id="gst-sgst">₹0</div><div class="stat-label">SGST</div></div>
+          <div class="stat-card orange"><div class="stat-icon orange">📋</div><div class="stat-value" id="gst-count">0</div><div class="stat-label">Invoices</div></div>
+        </div>
+        <div class="card">
+          <div class="section-header"><strong style="font-family:var(--font-head);font-size:15px">GST Report</strong><button class="btn btn-primary btn-sm">📥 Export GSTR-1</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Invoice#</th><th>Customer</th><th>GSTIN</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>Tax</th><th>Grand Total</th></tr></thead><tbody id="gst-tbody"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="page-section" id="page-reports">
+        <div class="section-header"><div><h2>Reports Dashboard</h2></div><button class="btn btn-primary btn-sm">📥 Export</button></div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+          <div class="stat-card green"><div class="stat-icon green">💹</div><div class="stat-value" id="rep-rev">₹0</div><div class="stat-label">Revenue</div></div>
+          <div class="stat-card blue"><div class="stat-icon blue">🧾</div><div class="stat-value" id="rep-inv">0</div><div class="stat-label">Invoices</div></div>
+          <div class="stat-card orange"><div class="stat-icon orange">🔧</div><div class="stat-value" id="rep-svc">0</div><div class="stat-label">Services Done</div></div>
+          <div class="stat-card red"><div class="stat-icon red">📑</div><div class="stat-value" id="rep-amc">0</div><div class="stat-label">AMC Active</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="card"><strong style="font-family:var(--font-head);font-size:15px">Top Products</strong><div style="margin-top:16px" id="top-products-report"></div></div>
+          <div class="card"><strong style="font-family:var(--font-head);font-size:15px">Monthly Performance</strong><div class="chart-bars" id="perf-chart" style="height:160px;margin-top:16px"></div></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page-section" id="page-settings">
+        <div class="section-header"><div><h2>Settings</h2></div></div>
+        <div class="grid-2">
+          <div class="card">
+            <strong style="font-family:var(--font-head);font-size:16px;display:block;margin-bottom:18px">🏢 Company Profile</strong>
+            <div class="form-group"><label class="form-label">Company Name</label><input class="form-control" id="set-name" value="DynaAircon"/></div>
+            <div class="form-group"><label class="form-label">GST Number</label><input class="form-control" id="set-gst" value="27ABCDE1234F1Z5"/></div>
+            <div class="form-group"><label class="form-label">Address</label><textarea class="form-control" id="set-address" rows="2">123, HVAC Zone, Mumbai 400001</textarea></div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Phone</label><input class="form-control" id="set-phone" value="+91 98765 43210"/></div>
+              <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="set-email" value="info@dynaaircon.com"/></div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+          </div>
+          <div class="card">
+            <strong style="font-family:var(--font-head);font-size:16px;display:block;margin-bottom:18px">🔌 Google Sheets Connection</strong>
+            <div id="settings-conn-status" style="border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+              <div id="set-conn-dot" style="width:12px;height:12px;border-radius:50%;background:#555;flex-shrink:0"></div>
+              <div style="flex:1"><div id="set-conn-title" style="font-weight:700;font-size:14px;color:var(--muted)">URL nahi dala abhi tak</div><div id="set-conn-sub" style="font-size:12px;margin-top:2px;opacity:.75;color:var(--muted)">Neeche URL paste karo</div></div>
+              <div id="set-conn-time" style="font-size:11px;color:var(--muted)"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Apps Script Web App URL</label><input class="form-control" id="set-url" placeholder="https://script.google.com/macros/s/.../exec"/></div>
+            <div style="background:rgba(30,144,255,.08);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--muted);line-height:1.8">
+              <strong style="color:var(--sky-light)">Setup:</strong><br>
+              1. Google Sheet → Extensions → Apps Script<br>
+              2. Code.gs paste → SHEET_ID + DRIVE_FOLDER_ID update karo<br>
+              3. manualSetup() function run karo (ek baar)<br>
+              4. Deploy → Web App → Anyone → URL copy karo<br>
+              5. Yahan paste karo → Save & Connect
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="saveSettingsAndConnect()">💾 Save & Connect</button>
+              <button class="btn btn-outline btn-sm" onclick="testConnectionNow()">🔌 Test</button>
+              <button class="btn btn-outline btn-sm" onclick="manualSync()">🔄 Sync Now</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="customer-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>👥 Add / Edit Customer</h3><div class="modal-close" onclick="closeModal('customer-modal')">✕</div></div>
+    <div class="modal-body">
+      <input type="hidden" id="c-id"/>
+      <div class="form-row"><div class="form-group"><label class="form-label">Name *</label><input class="form-control" id="c-name"/></div><div class="form-group"><label class="form-label">Mobile *</label><input class="form-control" id="c-mobile"/></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Email</label><input class="form-control" id="c-email"/></div><div class="form-group"><label class="form-label">GST</label><input class="form-control" id="c-gst"/></div></div>
+      <div class="form-group"><label class="form-label">Address</label><textarea class="form-control" id="c-address" rows="2"></textarea></div>
+      <div class="form-group"><label class="form-label">Site Location</label><input class="form-control" id="c-site"/></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('customer-modal')">Cancel</button><button class="btn btn-primary" onclick="saveCustomer()">💾 Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>📦 Add / Edit Product</h3><div class="modal-close" onclick="closeModal('product-modal')">✕</div></div>
+    <div class="modal-body">
+      <input type="hidden" id="p-id"/>
+      <div class="form-row"><div class="form-group"><label class="form-label">Product Name *</label><input class="form-control" id="p-name"/></div><div class="form-group"><label class="form-label">Brand</label><input class="form-control" id="p-brand"/></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Category</label><select class="form-control" id="p-category"><option>Split AC</option><option>Cassette AC</option><option>Tower AC</option><option>VRF System</option><option>Spare Part</option><option>Service</option></select></div><div class="form-group"><label class="form-label">Capacity</label><input class="form-control" id="p-capacity"/></div></div>
+      <div class="form-row-3"><div class="form-group"><label class="form-label">Price (₹) *</label><input class="form-control" type="number" id="p-price"/></div><div class="form-group"><label class="form-label">GST %</label><select class="form-control" id="p-gst"><option>0</option><option>5</option><option>12</option><option selected>18</option><option>28</option></select></div><div class="form-group"><label class="form-label">Stock</label><input class="form-control" type="number" id="p-stock" value="0"/></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('product-modal')">Cancel</button><button class="btn btn-primary" onclick="saveProduct()">💾 Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="service-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>🔧 Add Service Request</h3><div class="modal-close" onclick="closeModal('service-modal')">✕</div></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label class="form-label">Service Type *</label><select class="form-control" id="s-type"><option>AC Installation</option><option>AC Servicing</option><option>Gas Refilling</option><option>AC Repair</option><option>AMC Service</option><option>HVAC Maintenance</option></select></div><div class="form-group"><label class="form-label">Customer *</label><input class="form-control" id="s-customer"/></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Technician</label><select class="form-control" id="s-tech"><option>Ramesh Kumar</option><option>Suresh Patel</option><option>Anil Sharma</option><option>Vijay Singh</option></select></div><div class="form-group"><label class="form-label">Charge (₹)</label><input class="form-control" type="number" id="s-charge"/></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Date</label><input class="form-control" type="date" id="s-date"/></div><div class="form-group"><label class="form-label">Status</label><select class="form-control" id="s-status"><option>Pending</option><option>In Progress</option><option>Completed</option></select></div></div>
+      <div class="form-group"><label class="form-label">Remarks</label><textarea class="form-control" id="s-remarks" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('service-modal')">Cancel</button><button class="btn btn-primary" onclick="saveService()">💾 Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="amc-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>📑 Add AMC Contract</h3><div class="modal-close" onclick="closeModal('amc-modal')">✕</div></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label class="form-label">Customer *</label><input class="form-control" id="amc-customer"/></div><div class="form-group"><label class="form-label">Contract Value (₹)</label><input class="form-control" type="number" id="amc-value"/></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Start Date</label><input class="form-control" type="date" id="amc-start"/></div><div class="form-group"><label class="form-label">End Date</label><input class="form-control" type="date" id="amc-end"/></div></div>
+      <div class="form-group"><label class="form-label">Equipment Covered</label><textarea class="form-control" id="amc-equip" rows="2"></textarea></div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="amc-status"><option>Active</option><option>Expired</option><option>Renewal Pending</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('amc-modal')">Cancel</button><button class="btn btn-primary" onclick="saveAMC()">💾 Save</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tech-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>👷 Add Technician</h3><div class="modal-close" onclick="closeModal('tech-modal')">✕</div></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label class="form-label">Name *</label><input class="form-control" id="t-name"/></div><div class="form-group"><label class="form-label">Mobile</label><input class="form-control" id="t-mobile"/></div></div>
+      <div class="form-row"><div class="form-group"><label class="form-label">Specialization</label><select class="form-control" id="t-spec"><option>AC Installation</option><option>HVAC Maintenance</option><option>Refrigeration</option><option>Electrical</option></select></div><div class="form-group"><label class="form-label">Experience (yrs)</label><input class="form-control" type="number" id="t-exp" value="0"/></div></div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="t-status"><option>Available</option><option>On-Site</option><option>Off-Duty</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('tech-modal')">Cancel</button><button class="btn btn-primary" onclick="saveTechnician()">💾 Save</button></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA STORE
+// ═══════════════════════════════════════════════════════
+const DB={
+  get(k){try{return JSON.parse(localStorage.getItem('da_'+k)||'null')}catch{return null}},
+  set(k,v){localStorage.setItem('da_'+k,JSON.stringify(v))}
+};
+
+let settings=DB.get('settings')||{name:'DynaAircon',gst:'27ABCDE1234F1Z5',address:'123, HVAC Zone, Mumbai 400001',phone:'+91 98765 43210',email:'info@dynaaircon.com',url:''};
+let customers=DB.get('customers')||[{id:'CUST-001',name:'Rajesh Mehta',mobile:'9876543210',email:'rajesh@gmail.com',address:'Andheri West Mumbai',gst:'27ABCDE1234F1Z5',site:'Mehta Towers'},{id:'CUST-002',name:'Priya Sharma',mobile:'9867541230',email:'priya@outlook.com',address:'Bandra East Mumbai',gst:'',site:'Sharma Residency'},{id:'CUST-003',name:'Infosys Ltd.',mobile:'9823456780',email:'facilities@infosys.com',address:'BKC Mumbai',gst:'27INFSY1234F1Z8',site:'Infosys BKC'},{id:'CUST-004',name:'Global Pharma Pvt',mobile:'9900123456',email:'admin@globalpharma.in',address:'Vashi Navi Mumbai',gst:'27GLOBL9876F1Z2',site:'Global Pharma Factory'}];
+let products=DB.get('products')||[{id:'PROD-001',name:'Split AC 1.5 Ton 5-Star',brand:'Daikin',category:'Split AC',capacity:'1.5 Ton',price:42000,gst:18,stock:8},{id:'PROD-002',name:'Split AC 1 Ton 3-Star',brand:'Voltas',category:'Split AC',capacity:'1 Ton',price:32000,gst:18,stock:12},{id:'PROD-003',name:'Cassette AC 2 Ton',brand:'Daikin',category:'Cassette AC',capacity:'2 Ton',price:68000,gst:18,stock:4},{id:'PROD-004',name:'AC Installation Service',brand:'DynaAircon',category:'Service',capacity:'—',price:1500,gst:18,stock:999},{id:'PROD-005',name:'Gas Refilling R32',brand:'DynaAircon',category:'Service',capacity:'—',price:2200,gst:18,stock:999},{id:'PROD-006',name:'AC Servicing',brand:'DynaAircon',category:'Service',capacity:'—',price:800,gst:18,stock:999}];
+let invoices=DB.get('invoices')||[{number:'DA-INV-0001',date:'2025-06-01',customer:'Rajesh Mehta',mobile:'9876543210',gst:'27ABCDE1234F1Z5',address:'Andheri West',items:[{desc:'Split AC 1.5 Ton 5-Star',qty:2,rate:42000,gstPct:18}],status:'Paid'},{number:'DA-INV-0002',date:'2025-06-05',customer:'Infosys Ltd.',mobile:'9823456780',gst:'27INFSY1234F1Z8',address:'BKC Mumbai',items:[{desc:'Cassette AC 2 Ton',qty:4,rate:68000,gstPct:18}],status:'Pending'},{number:'DA-INV-0003',date:'2025-06-10',customer:'Priya Sharma',mobile:'9867541230',gst:'',address:'Bandra East',items:[{desc:'Split AC 1 Ton 3-Star',qty:1,rate:32000,gstPct:18},{desc:'Gas Refilling R32',qty:1,rate:2200,gstPct:18}],status:'Paid'}];
+let services=DB.get('services')||[{id:'SRV-001',type:'AC Servicing',customer:'Rajesh Mehta',tech:'Ramesh Kumar',date:'2025-06-14',charge:800,status:'Completed',remarks:'Filter cleaning'},{id:'SRV-002',type:'Gas Refilling',customer:'Priya Sharma',tech:'Suresh Patel',date:'2025-06-15',charge:2200,status:'In Progress',remarks:'R32 refill'},{id:'SRV-003',type:'AC Installation',customer:'Kavya Nair',tech:'Anil Sharma',date:'2025-06-16',charge:1500,status:'Pending',remarks:'New installation'}];
+let amcContracts=DB.get('amcs')||[{id:'AMC-001',customer:'Infosys Ltd.',start:'2025-01-01',end:'2025-12-31',value:84000,equip:'8 Cassette ACs',status:'Active'},{id:'AMC-002',customer:'Global Pharma Pvt',start:'2025-03-01',end:'2026-02-28',value:120000,equip:'VRF + 5 Split ACs',status:'Active'},{id:'AMC-003',customer:'Rajesh Mehta',start:'2024-07-01',end:'2025-06-30',value:12000,equip:'2 Split ACs',status:'Renewal Pending'}];
+let technicians=DB.get('technicians')||[{name:'Ramesh Kumar',mobile:'9812345678',spec:'AC Installation',exp:8,status:'Available',jobs:45},{name:'Suresh Patel',mobile:'9823456789',spec:'HVAC Maintenance',exp:6,status:'On-Site',jobs:32},{name:'Anil Sharma',mobile:'9834567890',spec:'Refrigeration',exp:4,status:'Available',jobs:28},{name:'Vijay Singh',mobile:'9845678901',spec:'Electrical',exp:10,status:'On-Site',jobs:67}];
+let quotations=DB.get('quotations')||[];
+
+let invCounter=DB.get('invCounter')||invoices.length+1;
+let quotCounter=DB.get('quotCounter')||quotations.length+1;
+let invItems=[{desc:'',qty:1,rate:0,gstPct:18}];
+let quotItems=[{desc:'',qty:1,rate:0}];
+let currentInvNumber='DA-INV-'+String(invCounter).padStart(4,'0');
+let invoiceFilter='',statusFilter='';
+
+// ═══════════════════════════════════════════════════════
+// CONNECTION MANAGER
+// ═══════════════════════════════════════════════════════
+let connStatus='no-url';
+let lastSyncTime=null;
+let connCheckInterval=null;
+
+function setConnStatus(status,msg,sub){
+  connStatus=status;
+  // Top bar
+  const bar=document.getElementById('conn-bar');
+  const barDot=document.getElementById('bar-dot');
+  const barText=document.getElementById('bar-text');
+  if(status==='no-url'){bar.classList.add('hidden');document.body.classList.remove('bar-on');return;}
+  bar.classList.remove('hidden');document.body.classList.add('bar-on');
+  bar.className=status==='connected'?'connected':status==='disconnected'?'disconnected':'checking';
+  barDot.className='conn-dot '+(status==='connected'?'ok':status==='disconnected'?'err':'spin');
+  barText.textContent=msg||'';
+  // Sidebar
+  const sc=document.getElementById('sidebar-conn');
+  const scDot=document.getElementById('sc-dot');
+  const scText=document.getElementById('sc-text');
+  const scSub=document.getElementById('sc-sub');
+  sc.className=status;
+  scDot.className='sc-dot '+(status==='connected'?'ok':status==='disconnected'?'err':'warn');
+  scText.textContent=status==='connected'?'Connected ✅':status==='disconnected'?'Disconnected ❌':'Checking...';
+  scSub.textContent=sub||'';
+  // Settings
+  const scs=document.getElementById('settings-conn-status');
+  const scd=document.getElementById('set-conn-dot');
+  const sct=document.getElementById('set-conn-title');
+  const scsu=document.getElementById('set-conn-sub');
+  const sctime=document.getElementById('set-conn-time');
+  if(status==='connected'){
+    scs.style.cssText='border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.3)';
+    scd.style.cssText='width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#00C896;box-shadow:0 0 8px #00C896';
+    sct.style.color='#00C896';sct.textContent='✅ Google Sheets Connected!';
+  }else if(status==='disconnected'){
+    scs.style.cssText='border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3)';
+    scd.style.cssText='width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#FF4D6A;box-shadow:0 0 8px #FF4D6A';
+    sct.style.color='#FF4D6A';sct.textContent='❌ Connection Lost!';
+  }else{
+    scs.style.cssText='border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.3)';
+    scd.style.cssText='width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#FFB830;box-shadow:0 0 8px #FFB830';
+    sct.style.color='#FFB830';sct.textContent='⏳ Checking...';
+  }
+  scsu.textContent=sub||'';
+  if(lastSyncTime)sctime.textContent='Last: '+lastSyncTime;
+  // Sync btn
+  const sb=document.getElementById('sync-btn');
+  if(status==='connected')sb.classList.add('connected-sync');else sb.classList.remove('connected-sync');
+  // Dashboard card
+  updateDashConnCard(status,msg,sub);
+}
+
+function updateDashConnCard(status,msg,sub){
+  const card=document.getElementById('dash-conn-card');
+  const inner=document.getElementById('dash-conn-inner');
+  const icon=document.getElementById('dash-conn-icon');
+  const title=document.getElementById('dash-conn-title');
+  const subEl=document.getElementById('dash-conn-sub');
+  if(!card)return;
+  if(status==='no-url'){card.style.display='none';return;}
+  card.style.display='block';
+  if(status==='connected'){
+    inner.style.cssText='border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.25)';
+    icon.textContent='✅';title.textContent='Google Sheets Connected!';title.style.color='#00C896';
+    subEl.textContent=sub||'Data sync ho raha hai';
+  }else if(status==='disconnected'){
+    inner.style.cssText='border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.25)';
+    icon.textContent='❌';title.textContent='Connection Toot Gaya!';title.style.color='#FF4D6A';
+    subEl.textContent=sub||'Google Sheets se connect nahi ho pa raha';
+  }else{
+    inner.style.cssText='border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(255,184,48,.1);border:1px solid rgba(255,184,48,.25)';
+    icon.textContent='⏳';title.textContent='Connecting...';title.style.color='#FFB830';
+    subEl.textContent='Google Sheets se connect ho raha hai...';
+  }
+}
+
+async function checkConnection(silent=false){
+  if(!settings.url){setConnStatus('no-url');return false;}
+  setConnStatus('checking','Checking...','');
+  if(!silent){document.getElementById('sync-btn').classList.add('syncing');}
+  try{
+    const r=await fetch(settings.url+'?action=ping',{method:'GET',cache:'no-cache'});
+    const d=await r.json();
+    if(d.status==='ok'){
+      lastSyncTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('conn-time').textContent='Last: '+lastSyncTime;
+      setConnStatus('connected','✅ Connected to Google Sheets',lastSyncTime+' | Synced');
+      document.getElementById('sync-btn').classList.remove('syncing');
+      document.getElementById('sync-label').textContent='Synced ✅';
+      setTimeout(()=>document.getElementById('sync-label').textContent='Sync',3000);
+      return true;
+    }else throw new Error('Bad response');
+  }catch(e){
+    setConnStatus('disconnected','❌ Connection Lost','Retry karo ya URL check karo');
+    document.getElementById('sync-btn').classList.remove('syncing');
+    document.getElementById('sync-label').textContent='Failed ❌';
+    setTimeout(()=>document.getElementById('sync-label').textContent='Sync',3000);
+    if(!silent)toast('Connection failed!','error');
+    return false;
+  }
+}
+
+async function manualSync(){
+  if(!settings.url){toast('Settings mein URL daalo pehle','warn');showPage('settings',null);return;}
+  document.getElementById('sync-btn').classList.add('syncing');
+  document.getElementById('sync-label').textContent='Syncing...';
+  toast('Syncing from Google Sheets...','info');
+  const ok=await checkConnection();
+  if(ok){await loadFromSheets();toast('Data refreshed ✅','success');}
+}
+
+async function loadFromSheets(){
+  if(!settings.url||connStatus!=='connected')return;
+  try{
+    const r=await fetch(settings.url+'?action=getAllData',{cache:'no-cache'});
+    const d=await r.json();
+    if(d.error){console.error('getAllData:',d.error);return;}
+    if(Array.isArray(d.customers)&&d.customers.length>0){
+      customers=d.customers.map(c=>({id:c['Customer ID']||'',name:c['Customer Name']||'',mobile:String(c['Mobile']||''),email:c['Email']||'',address:c['Address']||'',gst:c['GST Number']||'',site:c['Site Location']||''}));
+      DB.set('customers',customers);
+    }
+    if(Array.isArray(d.products)&&d.products.length>0){
+      products=d.products.map(p=>({id:p['Product ID']||'',name:p['Product Name']||'',brand:p['Brand']||'',category:p['Category']||'',capacity:p['Capacity']||'',price:Number(p['Price']||0),gst:Number(p['GST %']||18),stock:Number(p['Stock Qty']||0)}));
+      DB.set('products',products);
+    }
+    if(Array.isArray(d.invoices)&&d.invoices.length>0){
+      invoices=d.invoices.map(inv=>{
+        let items=[];
+        try{const pd=inv['Product Details'];items=Array.isArray(pd)?pd:(typeof pd==='string'?JSON.parse(pd):[]);}catch{items=[];}
+        return{number:inv['Invoice Number']||'',date:inv['Invoice Date']||'',customer:inv['Customer Name']||'',mobile:'',gst:'',address:'',items,status:inv['Payment Status']||'Pending'};
+      });
+      DB.set('invoices',invoices);
+    }
+    if(Array.isArray(d.services)&&d.services.length>0){
+      services=d.services.map(s=>({id:s['Service ID']||'',type:s['Service Type']||'',customer:s['Customer Name']||'',tech:s['Technician']||'',date:s['Scheduled Date']||'',charge:Number(s['Service Charge']||0),status:s['Status']||'Pending',remarks:s['Remarks']||''}));
+      DB.set('services',services);
+    }
+    if(Array.isArray(d.amc)&&d.amc.length>0){
+      amcContracts=d.amc.map(a=>({id:a['AMC ID']||'',customer:a['Customer Name']||'',start:a['Start Date']||'',end:a['End Date']||'',value:Number(a['Contract Value']||0),equip:a['Equipment Covered']||'',status:a['Status']||'Active'}));
+      DB.set('amcs',amcContracts);
+    }
+    if(Array.isArray(d.technicians)&&d.technicians.length>0){
+      technicians=d.technicians.map(t=>({name:t['Name']||'',mobile:String(t['Mobile']||''),spec:t['Specialization']||'',exp:Number(t['Experience Years']||0),status:t['Status']||'Available',jobs:Number(t['Total Jobs Done']||0)}));
+      DB.set('technicians',technicians);
+      updateTechDropdown();
+    }
+    if(Array.isArray(d.quotations)&&d.quotations.length>0){
+      quotations=d.quotations.map(q=>{let items=[];try{items=JSON.parse(q['Items JSON']||'[]')}catch{items=[];}return{number:q['Quotation Number']||'',customer:q['Customer Name']||'',mobile:String(q['Mobile']||''),site:q['Site Location']||'',validity:q['Valid Until']||'',items,status:q['Status']||'Draft'};});
+      DB.set('quotations',quotations);
+    }
+    const activePage=document.querySelector('.page-section.active')?.id?.replace('page-','');
+    if(activePage)refreshPage(activePage);
+    initInvoice();
+  }catch(e){console.error('Load error:',e);toast('Data load error: '+e.message,'error');}
+}
+
+function updateTechDropdown(){
+  const sel=document.getElementById('s-tech');
+  if(!sel||technicians.length===0)return;
+  sel.innerHTML=technicians.map(t=>`<option value="${t.name}">${t.name} (${t.spec})</option>`).join('');
+}
+
+function refreshPage(id){
+  if(id==='dashboard')renderDashboard();
+  else if(id==='customers')renderCustomers();
+  else if(id==='products')renderProducts();
+  else if(id==='services')renderServices();
+  else if(id==='amc')renderAMC();
+  else if(id==='payments')renderPayments();
+  else if(id==='gst')renderGST();
+  else if(id==='reports')renderReports();
+  else if(id==='invoicelist')renderInvoiceList();
+  else if(id==='technician')renderTechnicians();
+}
+
+function startConnectionMonitor(){
+  if(connCheckInterval)clearInterval(connCheckInterval);
+  if(!settings.url)return;
+  checkConnection(true);
+  connCheckInterval=setInterval(()=>checkConnection(true),120000);
+}
+
+async function testConnectionNow(){
+  if(!settings.url){toast('URL daalo pehle','warn');return;}
+  toast('Testing...','info');
+  const ok=await checkConnection();
+  if(ok){await loadFromSheets();toast('Connected & data synced ✅','success');}
+}
+
+async function saveSettingsAndConnect(){
+  saveSettings();
+  toast('Settings saved! Connecting...','info');
+  const ok=await checkConnection();
+  if(ok){await loadFromSheets();toast('Connected & synced ✅','success');}
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function showPage(id,el){
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+  const t=document.getElementById('page-'+id);if(t)t.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const titles={dashboard:'Dashboard',invoice:'Invoice Generator',invoicelist:'Invoice History',quotation:'Quotation',customers:'Customers',products:'Products',services:'Services',amc:'AMC',technician:'Technicians',payments:'Payments',gst:'GST Billing',reports:'Reports',settings:'Settings'};
+  document.getElementById('page-title-text').textContent=titles[id]||id;
+  if(id==='dashboard')renderDashboard();
+  if(id==='invoice'){initInvoice();renderInvoicePreview();}
+  if(id==='customers')renderCustomers();
+  if(id==='products')renderProducts();
+  if(id==='services')renderServices();
+  if(id==='amc')renderAMC();
+  if(id==='technician')renderTechnicians();
+  if(id==='payments')renderPayments();
+  if(id==='gst')renderGST();
+  if(id==='reports')renderReports();
+  if(id==='invoicelist')renderInvoiceList();
+  if(id==='quotation'){renderQuotList();if(!document.getElementById('quot-tbody').children.length)addQuotItem();}
+  if(id==='settings'){const u=document.getElementById('set-url');if(u&&settings.url)u.value=settings.url;}
+  closeMobileSidebar();
+}
+function toggleMobileSidebar(){document.getElementById('sidebar').classList.toggle('mobile-open');document.getElementById('sidebar-overlay').classList.toggle('show')}
+function closeMobileSidebar(){document.getElementById('sidebar').classList.remove('mobile-open');document.getElementById('sidebar-overlay').classList.remove('show')}
+
+// ═══════════════════════════════════════════════════════
+// TOAST & MODAL
+// ═══════════════════════════════════════════════════════
+function toast(msg,type='success'){
+  const icons={success:'✅',error:'❌',info:'ℹ️',warn:'⚠️'};
+  const tc=document.getElementById('toast-container');
+  const d=document.createElement('div');d.className='toast '+type;
+  d.innerHTML=`<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${msg}</span>`;
+  tc.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transform='translateX(60px)';setTimeout(()=>d.remove(),300)},3500);
+}
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('show')});
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function fmt(n){return Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function fmtDate(d){try{return new Date(d).toLocaleDateString('en-IN')}catch{return d||'—'}}
+function calcGrand(items){return(items||[]).reduce((s,it)=>s+(it.qty||1)*(it.rate||0)*(1+(it.gstPct||18)/100),0)}
+function badgeSt(s){const m={Paid:'badge-success',Active:'badge-success',Completed:'badge-success',Pending:'badge-warning','Renewal Pending':'badge-warning','In Progress':'badge-info',Partial:'badge-info',Draft:'badge-muted',Sent:'badge-info',Expired:'badge-danger'};return`<span class="badge ${m[s]||'badge-muted'}">${s}</span>`}
+function n2w(n){if(!n)return'Zero';const o=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'],t=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];function c(x){if(x<20)return o[x];if(x<100)return t[Math.floor(x/10)]+(x%10?' '+o[x%10]:'');if(x<1000)return o[Math.floor(x/100)]+' Hundred'+(x%100?' '+c(x%100):'');if(x<100000)return c(Math.floor(x/1000))+' Thousand'+(x%1000?' '+c(x%1000):'');if(x<10000000)return c(Math.floor(x/100000))+' Lakh'+(x%100000?' '+c(x%100000):'');return c(Math.floor(x/10000000))+' Crore'+(x%10000000?' '+c(x%10000000):'')}return c(n)}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderDashboard(){
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('stat-customers').textContent=customers.length;
+  document.getElementById('stat-invoices').textContent=invoices.length;
+  document.getElementById('stat-service').textContent=services.filter(s=>s.status!=='Completed').length;
+  document.getElementById('stat-amc').textContent=amcContracts.filter(a=>a.status==='Active').length;
+  const pend=invoices.filter(i=>i.status!=='Paid').reduce((s,i)=>s+calcGrand(i.items),0);
+  document.getElementById('stat-pending').textContent='₹'+fmt(pend);
+  const now=new Date(),mo=now.getMonth(),yr=now.getFullYear();
+  const rev=invoices.filter(i=>{const d=new Date(i.date);return d.getMonth()===mo&&d.getFullYear()===yr&&i.status==='Paid'}).reduce((s,i)=>s+calcGrand(i.items),0);
+  document.getElementById('stat-revenue').textContent='₹'+fmt(rev);
+  const itb=document.getElementById('dash-invoice-tbody');itb.innerHTML='';
+  [...invoices].reverse().slice(0,5).forEach(inv=>{itb.innerHTML+=`<tr><td><strong>${inv.number}</strong></td><td>${inv.customer}</td><td>₹${fmt(calcGrand(inv.items))}</td><td>${badgeSt(inv.status)}</td></tr>`});
+  const stb=document.getElementById('dash-service-tbody');stb.innerHTML='';
+  services.filter(s=>s.status!=='Completed').slice(0,5).forEach(sv=>{stb.innerHTML+=`<tr><td>${sv.type}</td><td>${sv.tech}</td><td>${badgeSt(sv.status)}</td></tr>`});
+  document.getElementById('svc-badge').textContent=services.filter(s=>s.status!=='Completed').length;
+  renderBarChart('revenue-chart',[180,240,195,310,280,480],['Jan','Feb','Mar','Apr','May','Jun']);
+  renderDonut();
+}
+function renderBarChart(id,vals,labels){const el=document.getElementById(id);if(!el)return;const mx=Math.max(...vals);el.innerHTML=labels.map((m,i)=>`<div class="chart-bar-wrap"><div class="chart-bar-val">₹${(vals[i]/1000).toFixed(0)}K</div><div class="chart-bar" style="height:${Math.round(vals[i]/mx*100)}%"></div><div class="chart-bar-label">${m}</div></div>`).join('')}
+function renderDonut(){const data=[{label:'Installation',val:45,color:'#1E90FF'},{label:'Service',val:30,color:'#00C896'},{label:'AMC',val:15,color:'#FFB830'},{label:'Parts',val:10,color:'#FF4D6A'}];const cx=60,cy=60,r=45,sw=18;let off=0;const total=100;const sv=document.getElementById('donut-svg'),lg=document.getElementById('donut-legend');if(!sv||!lg)return;let arcs='';data.forEach(d=>{const len=d.val/total*2*Math.PI*r,gap=2*Math.PI*r-len;arcs+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="${sw}" stroke-dasharray="${len} ${gap}" stroke-dashoffset="${-off}"/>`;off+=len;});sv.innerHTML=`<g transform="rotate(-90 60 60)">${arcs}</g><text x="60" y="55" text-anchor="middle" fill="#fff" font-size="14" font-weight="800" font-family="Syne">100%</text><text x="60" y="72" text-anchor="middle" fill="#8BA8CC" font-size="10">Services</text>`;lg.innerHTML=data.map(d=>`<div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div><span>${d.label}</span><strong style="margin-left:auto;color:${d.color}">${d.val}%</strong></div>`).join('')}
+
+// ═══════════════════════════════════════════════════════
+// INVOICE
+// ═══════════════════════════════════════════════════════
+function initInvoice(){
+  document.getElementById('inv-number').value=currentInvNumber;
+  document.getElementById('inv-date').value=new Date().toISOString().split('T')[0];
+  const sel=document.getElementById('inv-customer');
+  sel.innerHTML='<option value="">— Select Customer —</option>';
+  customers.forEach(c=>{const o=document.createElement('option');o.value=c.id||c['Customer ID']||'';o.textContent=c.name||c['Customer Name']||'';sel.appendChild(o);});
+  renderItems();
+}
+function fillCustomer(){
+  const cid=document.getElementById('inv-customer').value;
+  const c=customers.find(x=>(x.id||x['Customer ID']||'')===(cid));
+  if(c){document.getElementById('inv-mobile').value=c.mobile||c['Mobile']||'';document.getElementById('inv-gst').value=c.gst||c['GST Number']||'';document.getElementById('inv-address').value=c.address||c['Address']||'';renderInvoicePreview();}
+}
+function addItem(){invItems.push({desc:'',qty:1,rate:0,gstPct:18});renderItems()}
+function removeItem(i){if(invItems.length===1){toast('Kam se kam ek item chahiye','warn');return;}invItems.splice(i,1);renderItems()}
+
+function renderItems(){
+  const tb=document.getElementById('items-tbody');
+  if(!tb)return;
+  tb.innerHTML='';
+  invItems.forEach((it,i)=>{
+    const qty  = parseFloat(it.qty)  || 1;
+    const rate = parseFloat(it.rate) || 0;
+    const gp   = parseInt(it.gstPct) || 18;
+    const rowTotal = qty * rate;
+    const row=document.createElement('tr');
+    row.innerHTML=`
+      <td>
+        <input list="prod-list"
+          value="${it.desc||''}"
+          placeholder="Product/Service name"
+          oninput="invItems[${i}].desc=this.value;calcTotals()"
+          onchange="autoFillRate(${i},this.value)"
+          style="min-width:140px"/>
+      </td>
+      <td style="width:65px">
+        <input type="number" value="${qty}" min="1" step="1"
+          oninput="invItems[${i}].qty=parseFloat(this.value)||1;calcTotals()"
+          style="width:65px;text-align:center"/>
+      </td>
+      <td style="width:100px">
+        <input type="number" value="${rate}" min="0" step="0.01"
+          oninput="invItems[${i}].rate=parseFloat(this.value)||0;calcTotals()"
+          style="width:100px;text-align:right"
+          placeholder="0"/>
+      </td>
+      <td style="width:75px">
+        <select onchange="invItems[${i}].gstPct=parseInt(this.value);calcTotals()" style="width:75px">
+          <option value="0"  ${gp===0 ?'selected':''}>0%</option>
+          <option value="5"  ${gp===5 ?'selected':''}>5%</option>
+          <option value="12" ${gp===12?'selected':''}>12%</option>
+          <option value="18" ${gp===18?'selected':''}>18%</option>
+          <option value="28" ${gp===28?'selected':''}>28%</option>
+        </select>
+      </td>
+      <td style="width:100px;text-align:right;font-weight:600;padding:10px 8px;color:#fff">
+        ₹${fmt(rowTotal)}
+      </td>
+      <td style="width:36px;text-align:center">
+        <div class="del-btn" onclick="removeItem(${i})">✕</div>
+      </td>`;
+    tb.appendChild(row);
+  });
+  let dl=document.getElementById('prod-list');
+  if(!dl){dl=document.createElement('datalist');dl.id='prod-list';document.body.appendChild(dl);}
+  dl.innerHTML=products.map(p=>`<option value="${p.name||p['Product Name']||''}"></option>`).join('');
+  calcTotals();
+}
+
+// Product select karne par auto rate fill karo
+function autoFillRate(i, desc){
+  const prod = products.find(p=>(p.name||p['Product Name']||'')===desc);
+  if(prod){
+    invItems[i].rate   = parseFloat(prod.price||prod['Price']||0);
+    invItems[i].gstPct = parseInt(prod.gst||prod['GST %']||18);
+    renderItems();
+  }
+}
+
+function calcTotals(){
+  const sub = invItems.reduce((s,it)=>s + (parseFloat(it.qty)||1)*(parseFloat(it.rate)||0), 0);
+  const gst = invItems.reduce((s,it)=>s + (parseFloat(it.qty)||1)*(parseFloat(it.rate)||0)*((parseInt(it.gstPct)||18)/100), 0);
+  document.getElementById('inv-subtotal').textContent='₹'+fmt(sub);
+  document.getElementById('inv-cgst').textContent='₹'+fmt(gst/2);
+  document.getElementById('inv-sgst').textContent='₹'+fmt(gst/2);
+  document.getElementById('inv-grand').textContent='₹'+fmt(sub+gst);
+  renderInvoicePreview();
+}
+
+async function saveAndPreviewInvoice(){
+  const sel=document.getElementById('inv-customer');
+  const custName=sel.options[sel.selectedIndex]?.text||'';
+  if(!custName||custName.includes('Select')){toast('Customer select karo','warn');return;}
+  const validItems=invItems.filter(it=>it.rate>0||it.desc);
+  if(validItems.length===0){toast('Kam se kam ek item add karo','warn');return;}
+  const inv={number:document.getElementById('inv-number').value,date:document.getElementById('inv-date').value,customer:custName,mobile:document.getElementById('inv-mobile').value,gst:document.getElementById('inv-gst').value,address:document.getElementById('inv-address').value,items:JSON.parse(JSON.stringify(invItems)),status:document.getElementById('inv-status').value};
+  const idx=invoices.findIndex(x=>x.number===inv.number);
+  if(idx>=0)invoices[idx]=inv;else invoices.push(inv);
+  DB.set('invoices',invoices);
+  renderInvoicePreview();
+  if(settings.url){
+    if(connStatus==='connected'){
+      try{
+        const result=await apiCall('saveInvoice',inv);
+        if(result&&result.success){
+          const driveMsg=result.driveFileId?' + Drive ✅':'';
+          toast('Invoice saved → Sheets ✅'+driveMsg,'success');
+        }else{toast('Saved locally — Sheets error: '+(result?.error||'unknown'),'warn');}
+      }catch(e){toast('Saved locally (Sheets offline)','warn');}
+    }else{
+      const ok=await checkConnection();
+      if(ok){try{await apiCall('saveInvoice',inv);toast('Invoice saved → Sheets ✅','success');}catch{toast('Invoice saved locally','success');}}
+      else{toast('Invoice '+inv.number+' saved locally','success');}
+    }
+  }else{toast('Invoice '+inv.number+' saved! (URL add karo Sheets ke liye)','success');}
+}
+
+function resetInvoice(){
+  invItems=[{desc:'',qty:1,rate:0,gstPct:18}];
+  invCounter++;DB.set('invCounter',invCounter);
+  currentInvNumber='DA-INV-'+String(invCounter).padStart(4,'0');
+  document.getElementById('inv-number').value=currentInvNumber;
+  document.getElementById('inv-customer').value='';
+  ['inv-mobile','inv-gst','inv-address'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('inv-status').value='Pending';
+  renderItems();
+}
+
+function renderInvoicePreview(){
+  const sub=invItems.reduce((s,it)=>s+(it.qty||1)*(it.rate||0),0);
+  const gstAmt=invItems.reduce((s,it)=>s+((it.qty||1)*(it.rate||0)*((it.gstPct||18)/100)),0);
+  const grand=sub+gstAmt;
+  const sel=document.getElementById('inv-customer');
+  const custName=sel?.options[sel.selectedIndex]?.text||'Customer Name';
+  const invNo=document.getElementById('inv-number')?.value||'';
+  const invDate=document.getElementById('inv-date')?.value||'';
+  const mobile=document.getElementById('inv-mobile')?.value||'';
+  const gstNum=document.getElementById('inv-gst')?.value||'';
+  const addr=document.getElementById('inv-address')?.value||'';
+  const status=document.getElementById('inv-status')?.value||'Pending';
+  const rows=invItems.map((it,i)=>{
+    const qty=it.qty||1,rate=it.rate||0,gp=it.gstPct||18;
+    const gstI=qty*rate*(gp/100),total=qty*rate+gstI;
+    return`<tr><td style="text-align:center;padding:8px 10px">${i+1}</td><td style="padding:8px 10px">${it.desc||'—'}</td><td style="text-align:center;padding:8px 10px">${qty}</td><td style="text-align:right;padding:8px 10px">₹${fmt(rate)}</td><td style="text-align:center;padding:8px 10px">${gp}%</td><td style="text-align:right;padding:8px 10px">₹${fmt(gstI)}</td><td style="text-align:right;padding:8px 10px;font-weight:600">₹${fmt(total)}</td></tr>`;
+  }).join('');
+  const statusColor=status==='Paid'?'#00C896':status==='Pending'?'#FF9500':'#1E90FF';
+  const dueDate=invDate?new Date(new Date(invDate).setDate(new Date(invDate).getDate()+30)).toLocaleDateString('en-IN'):'—';
+  const el=document.getElementById('invoice-preview');if(!el)return;
+  el.innerHTML=`<div class="inv-header"><div class="inv-logo-area"><div class="inv-logo-box">❄️</div><div><div class="inv-co-name">${settings.name||'DynaAircon'}</div><div class="inv-co-sub">Air Conditioning & HVAC Solutions</div><div style="font-size:11px;color:#666;margin-top:4px">${settings.address||''}</div><div style="font-size:11px;color:#666">${settings.phone||''} | ${settings.email||''}</div><div style="font-size:11px;color:#666">GSTIN: ${settings.gst||''}</div></div></div><div class="inv-meta"><div class="inv-title">INVOICE</div><div class="inv-number">${invNo}</div><div style="font-size:12px;color:#555;margin-top:6px">Date: ${invDate?new Date(invDate).toLocaleDateString('en-IN'):'—'}</div></div></div><div class="inv-info-grid"><div class="inv-info-box"><h4>Bill To</h4><p><strong>${custName.includes('Select')?'Customer Name':custName}</strong><br>${mobile?'📞 '+mobile+'<br>':''}${gstNum?'GSTIN: '+gstNum+'<br>':''}${addr||''}</p></div><div class="inv-info-box" style="text-align:right"><h4>Payment Status</h4><p><strong style="color:${statusColor};font-size:16px">${status}</strong></p><h4 style="margin-top:10px">Due Date</h4><p>${dueDate}</p></div></div><table class="inv-table"><thead><tr><th style="width:32px">#</th><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:center">GST%</th><th style="text-align:right">GST Amt</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:16px;color:#999">No items added</td></tr>'}</tbody></table><div class="inv-totals"><div class="inv-totals-box"><div class="inv-total-row"><span>Subtotal</span><span>₹${fmt(sub)}</span></div><div class="inv-total-row"><span>CGST</span><span>₹${fmt(gstAmt/2)}</span></div><div class="inv-total-row"><span>SGST</span><span>₹${fmt(gstAmt/2)}</span></div><div class="inv-grand-total"><span>GRAND TOTAL</span><span>₹${fmt(grand)}</span></div></div></div><div style="background:#f0f7ff;border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#333"><strong>Amount in Words:</strong> ${n2w(Math.round(grand))} Rupees Only</div><div class="inv-footer"><div class="inv-tnc"><strong>Terms & Conditions:</strong><br>1. Payment due within 30 days.<br>2. Subject to Mumbai jurisdiction.</div><div class="inv-stamp"><div style="font-size:8px;font-weight:800">PAID</div><div style="font-size:18px">✓</div></div><div class="inv-sign-area"><div class="inv-sign-line">For ${settings.name||'DynaAircon'}<br>Authorised Signatory</div></div></div>`;
+}
+
+function printInvoice(){
+  const c=document.getElementById('invoice-preview').innerHTML;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice</title><link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#fff;padding:20px}.inv-header{display:flex;justify-content:space-between;margin-bottom:30px;padding-bottom:24px;border-bottom:2px solid #0A1628}.inv-logo-area{display:flex;align-items:center;gap:14px}.inv-logo-box{width:52px;height:52px;background:linear-gradient(135deg,#1E90FF,#0066DD);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}.inv-co-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#0A1628}.inv-co-sub{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px}.inv-meta{text-align:right}.inv-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#1E90FF;letter-spacing:2px}.inv-number{font-size:13px;color:#555}.inv-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}.inv-info-box h4{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}.inv-info-box p{font-size:13.5px;line-height:1.7}.inv-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px}.inv-table thead{background:#0A1628;color:#fff}.inv-table thead th{padding:10px 12px;text-align:left;font-size:11px}.inv-table tbody tr:nth-child(even){background:#f7f9ff}.inv-table tbody td{padding:10px 12px;border-bottom:1px solid #e8ecf5}.inv-totals{display:flex;justify-content:flex-end;margin-bottom:24px}.inv-totals-box{min-width:220px}.inv-total-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #eee}.inv-grand-total{display:flex;justify-content:space-between;padding:10px 0;font-weight:800;font-size:16px;border-top:2px solid #0A1628;color:#0A1628}.inv-footer{display:flex;justify-content:space-between;align-items:flex-end;padding-top:24px;border-top:1px dashed #ccc}.inv-sign-line{border-top:1px solid #aaa;padding-top:6px;font-size:12px;color:#777;margin-top:40px;text-align:center}.inv-tnc{font-size:11px;color:#888;max-width:300px;line-height:1.6}.inv-stamp{width:70px;height:70px;border-radius:50%;border:3px solid #1E90FF;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#1E90FF;font-size:10px;font-weight:700;transform:rotate(-15deg)}</style></head><body>${c}</body></html>`);
+  w.document.close();setTimeout(()=>w.print(),600);
+}
+function downloadPDF(){toast('Print dialog mein "Save as PDF" select karo','info');printInvoice();}
+function shareWhatsApp(){
+  const sel=document.getElementById('inv-customer');
+  const custName=sel.options[sel.selectedIndex]?.text||'';
+  const mobile=document.getElementById('inv-mobile').value.replace(/\D/g,'');
+  const grand=invItems.reduce((s,it)=>s+(it.qty||1)*(it.rate||0)*(1+(it.gstPct||18)/100),0);
+  const msg=encodeURIComponent(`🧾 *Invoice from ${settings.name}*\n\nInvoice: *${document.getElementById('inv-number').value}*\nCustomer: ${custName}\nAmount: *₹${fmt(grand)}*\n\n📞 ${settings.phone}\n_Thank you for your business!_`);
+  window.open(mobile?`https://wa.me/91${mobile}?text=${msg}`:`https://wa.me/?text=${msg}`,'_blank');
+}
+
+// ═══════════════════════════════════════════════════════
+// INVOICE LIST
+// ═══════════════════════════════════════════════════════
+function renderInvoiceList(){
+  const tb=document.getElementById('invoice-list-tbody');if(!tb)return;tb.innerHTML='';
+  let list=[...invoices].reverse();
+  if(invoiceFilter)list=list.filter(i=>(i.number||'').toLowerCase().includes(invoiceFilter)||(i.customer||'').toLowerCase().includes(invoiceFilter));
+  if(statusFilter)list=list.filter(i=>i.status===statusFilter);
+  list.forEach(inv=>{
+    const sub=inv.items.reduce((s,it)=>s+(it.qty||1)*(it.rate||0),0);
+    const gst=inv.items.reduce((s,it)=>s+((it.qty||1)*(it.rate||0)*((it.gstPct||18)/100)),0);
+    tb.innerHTML+=`<tr><td><strong>${inv.number}</strong></td><td class="td-light">${inv.date}</td><td>${inv.customer}</td><td>₹${fmt(sub)}</td><td>₹${fmt(gst)}</td><td><strong>₹${fmt(sub+gst)}</strong></td><td>${badgeSt(inv.status)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm btn-icon" onclick="editInvoice('${inv.number}')">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteInvoice('${inv.number}')">🗑️</button></div></td></tr>`;
+  });
+}
+function filterInvoices(v){invoiceFilter=v.toLowerCase();renderInvoiceList()}
+function filterByStatus(v){statusFilter=v;renderInvoiceList()}
+function editInvoice(num){
+  const inv=invoices.find(x=>x.number===num);if(!inv)return;
+  showPage('invoice',document.querySelectorAll('.nav-item')[1]);
+  setTimeout(()=>{
+    document.getElementById('inv-number').value=inv.number;
+    document.getElementById('inv-date').value=inv.date;
+    document.getElementById('inv-mobile').value=inv.mobile||'';
+    document.getElementById('inv-gst').value=inv.gst||'';
+    document.getElementById('inv-address').value=inv.address||'';
+    document.getElementById('inv-status').value=inv.status||'Pending';
+    const sel=document.getElementById('inv-customer');
+    for(let i=0;i<sel.options.length;i++){if(sel.options[i].text===inv.customer){sel.selectedIndex=i;break;}}
+    invItems=JSON.parse(JSON.stringify(inv.items));
+    renderItems();
+  },100);
+}
+async function deleteInvoice(num){
+  if(!confirm('Delete '+num+'?'))return;
+  invoices=invoices.filter(x=>x.number!==num);DB.set('invoices',invoices);
+  if(settings.url&&connStatus==='connected')try{await apiCall('deleteInvoice',{number:num});}catch{}
+  toast('Invoice deleted','warn');renderInvoiceList();
+}
+
+// ═══════════════════════════════════════════════════════
+// CUSTOMERS
+// ═══════════════════════════════════════════════════════
+function renderCustomers(filter=''){
+  const tb=document.getElementById('customer-tbody');if(!tb)return;tb.innerHTML='';
+  let list=customers;if(filter)list=list.filter(c=>(c.name||'').toLowerCase().includes(filter)||(c.mobile||'').includes(filter));
+  list.forEach((c,i)=>{tb.innerHTML+=`<tr><td class="td-light">${c.id||''}</td><td><strong>${c.name||''}</strong></td><td>📞 ${c.mobile||''}</td><td>${c.email||'—'}</td><td class="td-light">${c.gst||'—'}</td><td class="td-light">${c.site||'—'}</td><td><div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm btn-icon" onclick="editCustomer(${i})">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteCustomer(${i})">🗑️</button></div></td></tr>`;});
+}
+function searchCustomers(v){renderCustomers(v.toLowerCase())}
+async function saveCustomer(){
+  const id=document.getElementById('c-id').value;
+  const c={id:id||'CUST-'+String(customers.length+1).padStart(3,'0'),name:document.getElementById('c-name').value,mobile:document.getElementById('c-mobile').value,email:document.getElementById('c-email').value,address:document.getElementById('c-address').value,gst:document.getElementById('c-gst').value,site:document.getElementById('c-site').value};
+  if(!c.name||!c.mobile){toast('Name & mobile required','warn');return;}
+  if(id){const idx=customers.findIndex(x=>x.id===id);if(idx>=0)customers[idx]=c;else customers.push(c);}else customers.push(c);
+  DB.set('customers',customers);
+  if(settings.url&&connStatus==='connected'&&!id)try{await apiCall('saveCustomer',c);}catch{}
+  closeModal('customer-modal');renderCustomers();
+  toast('Customer saved!','success');
+  ['c-id','c-name','c-mobile','c-email','c-address','c-gst','c-site'].forEach(x=>{const el=document.getElementById(x);if(el)el.value='';});
+  initInvoice();
+}
+function editCustomer(i){const c=customers[i];document.getElementById('c-id').value=c.id||'';document.getElementById('c-name').value=c.name||'';document.getElementById('c-mobile').value=c.mobile||'';document.getElementById('c-email').value=c.email||'';document.getElementById('c-address').value=c.address||'';document.getElementById('c-gst').value=c.gst||'';document.getElementById('c-site').value=c.site||'';openModal('customer-modal');}
+function deleteCustomer(i){if(!confirm('Delete?'))return;customers.splice(i,1);DB.set('customers',customers);renderCustomers();toast('Deleted','warn');}
+
+// ═══════════════════════════════════════════════════════
+// PRODUCTS
+// ═══════════════════════════════════════════════════════
+function renderProducts(filter=''){
+  const tb=document.getElementById('product-tbody');if(!tb)return;tb.innerHTML='';
+  let list=products;if(filter)list=list.filter(p=>(p.name||'').toLowerCase().includes(filter));
+  list.forEach((p,i)=>{tb.innerHTML+=`<tr><td class="td-light">${p.id||''}</td><td><strong>${p.name||''}</strong></td><td>${p.brand||''}</td><td>${p.category||''}</td><td><strong>₹${fmt(p.price||0)}</strong></td><td>${p.gst||18}%</td><td><span class="badge ${(p.stock||0)<5?'badge-danger':(p.stock||0)<10?'badge-warning':'badge-success'}">${p.stock||0} units</span></td><td><div style="display:flex;gap:6px"><button class="btn btn-outline btn-sm btn-icon" onclick="editProduct(${i})">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteProduct(${i})">🗑️</button></div></td></tr>`;});
+}
+function searchProducts(v){renderProducts(v.toLowerCase())}
+async function saveProduct(){
+  const id=document.getElementById('p-id').value;
+  const p={id:id||'PROD-'+String(products.length+1).padStart(3,'0'),name:document.getElementById('p-name').value,brand:document.getElementById('p-brand').value,category:document.getElementById('p-category').value,capacity:document.getElementById('p-capacity').value,price:+document.getElementById('p-price').value,gst:+document.getElementById('p-gst').value,stock:+document.getElementById('p-stock').value};
+  if(!p.name||!p.price){toast('Name & price required','warn');return;}
+  if(id){const idx=products.findIndex(x=>x.id===id);if(idx>=0)products[idx]=p;else products.push(p);}else products.push(p);
+  DB.set('products',products);
+  if(settings.url&&connStatus==='connected'&&!id)try{await apiCall('saveProduct',p);}catch{}
+  closeModal('product-modal');renderProducts();toast('Product saved!','success');
+}
+function editProduct(i){const p=products[i];document.getElementById('p-id').value=p.id||'';document.getElementById('p-name').value=p.name||'';document.getElementById('p-brand').value=p.brand||'';document.getElementById('p-category').value=p.category||'';document.getElementById('p-capacity').value=p.capacity||'';document.getElementById('p-price').value=p.price||0;document.getElementById('p-gst').value=p.gst||18;document.getElementById('p-stock').value=p.stock||0;openModal('product-modal');}
+function deleteProduct(i){if(!confirm('Delete?'))return;products.splice(i,1);DB.set('products',products);renderProducts();toast('Deleted','warn');}
+
+// ═══════════════════════════════════════════════════════
+// SERVICES
+// ═══════════════════════════════════════════════════════
+function renderServices(){
+  const tb=document.getElementById('service-tbody');if(!tb)return;tb.innerHTML='';
+  document.getElementById('svc-total').textContent=services.length;
+  document.getElementById('svc-pending').textContent=services.filter(s=>s.status==='Pending').length;
+  document.getElementById('svc-done').textContent=services.filter(s=>s.status==='Completed').length;
+  services.forEach((s,i)=>{tb.innerHTML+=`<tr><td class="td-light">${s.id||''}</td><td><strong>${s.type||''}</strong></td><td>${s.customer||''}</td><td>${s.tech||''}</td><td class="td-light">${s.date||''}</td><td>₹${fmt(s.charge||0)}</td><td>${badgeSt(s.status||'Pending')}</td><td><div style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="completeService(${i})" ${s.status==='Completed'?'disabled style="opacity:.4"':''}>✅</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteService(${i})">🗑️</button></div></td></tr>`;});
+}
+async function saveService(){
+  const s={id:'SRV-'+String(services.length+1).padStart(3,'0'),type:document.getElementById('s-type').value,customer:document.getElementById('s-customer').value,tech:document.getElementById('s-tech').value,date:document.getElementById('s-date').value,charge:+document.getElementById('s-charge').value,status:document.getElementById('s-status').value,remarks:document.getElementById('s-remarks').value};
+  if(!s.customer){toast('Customer required','warn');return;}
+  services.push(s);DB.set('services',services);
+  if(settings.url&&connStatus==='connected')try{await apiCall('saveService',s);}catch{}
+  closeModal('service-modal');renderServices();toast('Service added!','success');
+}
+function completeService(i){services[i].status='Completed';DB.set('services',services);if(settings.url&&connStatus==='connected')apiCall('updateService',{id:services[i].id,status:'Completed',tech:services[i].tech});renderServices();toast('Completed ✅','success');}
+function deleteService(i){if(!confirm('Delete?'))return;services.splice(i,1);DB.set('services',services);renderServices();toast('Deleted','warn');}
+
+// ═══════════════════════════════════════════════════════
+// AMC
+// ═══════════════════════════════════════════════════════
+function renderAMC(){
+  const c=document.getElementById('amc-cards');if(!c)return;c.innerHTML='';
+  amcContracts.forEach((a,i)=>{
+    const start=new Date(a.start||''),end=new Date(a.end||''),now=new Date();
+    const total=end-start,elapsed=now-start;
+    const pct=total>0?Math.min(100,Math.max(0,Math.round(elapsed/total*100))):0;
+    const daysLeft=Math.ceil((end-now)/(1000*60*60*24));
+    const fc=daysLeft<30?'danger':daysLeft<90?'warn':'';
+    c.innerHTML+=`<div class="amc-card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700;font-size:14px">${a.customer||''}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">${a.id||''}</div></div>${badgeSt(a.status||'Active')}</div><div style="font-size:12px;color:var(--muted)">📦 ${a.equip||'—'}</div><div style="font-size:13px">💰 <strong>₹${fmt(a.value||0)}</strong></div><div style="font-size:12px;color:var(--muted)">📅 ${fmtDate(a.start)} → ${fmtDate(a.end)}<span style="color:${daysLeft<30?'#FF4D6A':daysLeft<90?'#FFB830':'#00C896'};font-weight:600"> • ${daysLeft>0?daysLeft+' days left':'EXPIRED'}</span></div><div class="amc-progress"><div class="amc-progress-fill ${fc}" style="width:${pct}%"></div></div><div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm" style="flex:1" onclick="renewAMC(${i})">🔄 Renew</button><button class="btn btn-primary btn-sm" style="flex:1" onclick="genAMCInvoice(${i})">🧾 Invoice</button></div></div>`;
+  });
+}
+async function saveAMC(){
+  const a={id:'AMC-'+String(amcContracts.length+1).padStart(3,'0'),customer:document.getElementById('amc-customer').value,start:document.getElementById('amc-start').value,end:document.getElementById('amc-end').value,value:+document.getElementById('amc-value').value,equip:document.getElementById('amc-equip').value,status:document.getElementById('amc-status').value};
+  if(!a.customer){toast('Customer required','warn');return;}
+  amcContracts.push(a);DB.set('amcs',amcContracts);
+  if(settings.url&&connStatus==='connected')try{await apiCall('saveAMC',a);}catch{}
+  closeModal('amc-modal');renderAMC();toast('AMC added!','success');
+}
+function renewAMC(i){const a=amcContracts[i];const e=new Date(a.end||new Date());e.setFullYear(e.getFullYear()+1);a.end=e.toISOString().split('T')[0];a.status='Active';DB.set('amcs',amcContracts);renderAMC();toast('AMC renewed!','success');}
+function genAMCInvoice(i){const a=amcContracts[i];showPage('invoice',document.querySelectorAll('.nav-item')[1]);setTimeout(()=>{document.getElementById('inv-address').value=a.customer||'';invItems=[{desc:'AMC — '+(a.equip||''),qty:1,rate:+(a.value||0),gstPct:18}];renderItems();},200);}
+
+// ═══════════════════════════════════════════════════════
+// TECHNICIANS
+// ═══════════════════════════════════════════════════════
+function renderTechnicians(){
+  const c=document.getElementById('tech-cards');if(!c)return;c.innerHTML='';
+  const sc={Available:'#00C896','On-Site':'#1E90FF','Off-Duty':'#FFB830'};
+  technicians.forEach((t,i)=>{
+    const n=t.name||'';const init=n.split(' ').map(w=>w[0]||'').join('').toUpperCase()||'?';
+    const st=t.status||'Available';
+    c.innerHTML+=`<div class="tech-card"><div class="tech-avatar">${init}</div><div class="tech-info"><div class="tech-name">${n}</div><div class="tech-role">🔧 ${t.spec||''} • ${t.exp||0} yrs</div><div class="tech-stats"><span class="tech-stat">📞 <strong>${t.mobile||''}</strong></span><span class="tech-stat">Jobs: <strong>${t.jobs||0}</strong></span></div></div><span class="badge" style="background:${(sc[st]||'#8BA8CC')+'22'};color:${sc[st]||'#8BA8CC'};align-self:flex-start">${st}</span></div>`;
+  });
+  const atb=document.getElementById('assign-tbody');if(!atb)return;atb.innerHTML='';
+  services.filter(s=>s.status!=='Completed').forEach(s=>{atb.innerHTML+=`<tr><td><strong>${s.tech||''}</strong></td><td>${s.type||''}</td><td>${s.customer||''}</td><td class="td-light">${s.date||''}</td><td>${badgeSt(s.status||'Pending')}</td></tr>`;});
+}
+async function saveTechnician(){
+  const t={name:document.getElementById('t-name').value,mobile:document.getElementById('t-mobile').value,spec:document.getElementById('t-spec').value,exp:+document.getElementById('t-exp').value,status:document.getElementById('t-status').value,jobs:0};
+  if(!t.name){toast('Name required','warn');return;}
+  technicians.push(t);DB.set('technicians',technicians);
+  if(settings.url&&connStatus==='connected')try{await apiCall('saveTechnician',t);}catch{}
+  updateTechDropdown();closeModal('tech-modal');renderTechnicians();toast('Technician added!','success');
+}
+
+// ═══════════════════════════════════════════════════════
+// PAYMENTS
+// ═══════════════════════════════════════════════════════
+function renderPayments(){
+  const c=document.getElementById('payment-list');if(!c)return;c.innerHTML='';
+  const paid=invoices.filter(i=>i.status==='Paid').reduce((s,i)=>s+calcGrand(i.items),0);
+  const pend=invoices.filter(i=>i.status!=='Paid').reduce((s,i)=>s+calcGrand(i.items),0);
+  const rate=invoices.length?Math.round(invoices.filter(i=>i.status==='Paid').length/invoices.length*100):0;
+  const tp=document.getElementById('pay-total');if(tp)tp.textContent='₹'+fmt(paid);
+  const pp=document.getElementById('pay-pending');if(pp)pp.textContent='₹'+fmt(pend);
+  const pr=document.getElementById('pay-rate');if(pr)pr.textContent=rate+'%';
+  const sc={Paid:'#00C896',Pending:'#FFB830',Partial:'#1E90FF'};
+  invoices.forEach((inv,i)=>{
+    const grand=calcGrand(inv.items);
+    c.innerHTML+=`<div class="pay-item"><div style="width:90px"><div style="font-size:11px;color:var(--muted)">Invoice</div><div style="font-weight:700;font-size:13px">${inv.number}</div></div><div style="flex:1"><div style="font-weight:600">${inv.customer}</div><div style="font-size:12px;color:var(--muted)">${inv.date}</div></div><div class="pay-amount">₹${fmt(grand)}</div><span class="badge" style="background:${(sc[inv.status]||'#8BA8CC')+'22'};color:${sc[inv.status]||'#8BA8CC'}">${inv.status}</span>${inv.status!=='Paid'?`<button class="btn btn-success btn-sm" onclick="markPaid(${i})">Mark Paid</button>`:''}</div>`;
+  });
+}
+async function markPaid(i){invoices[i].status='Paid';DB.set('invoices',invoices);if(settings.url&&connStatus==='connected')try{await apiCall('updateInvoice',{number:invoices[i].number,status:'Paid'});}catch{}renderPayments();toast('Marked Paid ✅','success');}
+
+// ═══════════════════════════════════════════════════════
+// GST
+// ═══════════════════════════════════════════════════════
+function renderGST(){
+  const tb=document.getElementById('gst-tbody');if(!tb)return;tb.innerHTML='';
+  let totalGst=0;
+  invoices.forEach(inv=>{
+    const sub=inv.items.reduce((s,it)=>s+(it.qty||1)*(it.rate||0),0);
+    const gst=inv.items.reduce((s,it)=>s+((it.qty||1)*(it.rate||0)*((it.gstPct||18)/100)),0);
+    totalGst+=gst;
+    tb.innerHTML+=`<tr><td><strong>${inv.number}</strong></td><td>${inv.customer}</td><td class="td-light">${inv.gst||'Unregistered'}</td><td>₹${fmt(sub)}</td><td>₹${fmt(gst/2)}</td><td>₹${fmt(gst/2)}</td><td><strong>₹${fmt(gst)}</strong></td><td><strong>₹${fmt(sub+gst)}</strong></td></tr>`;
+  });
+  const gt=document.getElementById('gst-total');if(gt)gt.textContent='₹'+fmt(totalGst);
+  const gc=document.getElementById('gst-cgst');if(gc)gc.textContent='₹'+fmt(totalGst/2);
+  const gs=document.getElementById('gst-sgst');if(gs)gs.textContent='₹'+fmt(totalGst/2);
+  const gn=document.getElementById('gst-count');if(gn)gn.textContent=invoices.length;
+}
+
+// ═══════════════════════════════════════════════════════
+// REPORTS
+// ═══════════════════════════════════════════════════════
+function renderReports(){
+  const rev=invoices.reduce((s,i)=>s+calcGrand(i.items),0);
+  const ri=document.getElementById('rep-rev');if(ri)ri.textContent='₹'+fmt(rev);
+  const ii=document.getElementById('rep-inv');if(ii)ii.textContent=invoices.length;
+  const si=document.getElementById('rep-svc');if(si)si.textContent=services.filter(s=>s.status==='Completed').length;
+  const ai=document.getElementById('rep-amc');if(ai)ai.textContent=amcContracts.filter(a=>a.status==='Active').length;
+  const tpEl=document.getElementById('top-products-report');
+  if(tpEl){
+    const pr={};invoices.forEach(inv=>inv.items.forEach(it=>{pr[it.desc||'—']=(pr[it.desc||'—']||0)+(it.qty||1)*(it.rate||0);}));
+    const sorted=Object.entries(pr).sort((a,b)=>b[1]-a[1]).slice(0,6);const mx=sorted[0]?sorted[0][1]:1;
+    tpEl.innerHTML=sorted.map(([n,v])=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><div style="font-size:13px;width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">${n}</div><div style="flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Math.round(v/mx*100)}%;background:linear-gradient(90deg,var(--sky),var(--sky-light));border-radius:4px"></div></div><div style="font-size:13px;font-weight:700;color:var(--sky-light);width:80px;text-align:right">₹${fmt(v)}</div></div>`).join('');
+  }
+  renderBarChart('perf-chart',[180,240,195,310,280,480],['Jan','Feb','Mar','Apr','May','Jun']);
+}
+
+// ═══════════════════════════════════════════════════════
+// QUOTATION
+// ═══════════════════════════════════════════════════════
+function addQuotItem(){quotItems.push({desc:'',qty:1,rate:0});renderQuotItems();}
+function renderQuotItems(){
+  const tb=document.getElementById('quot-tbody');if(!tb)return;tb.innerHTML='';
+  quotItems.forEach((it,i)=>{tb.innerHTML+=`<tr><td><input list="prod-list" value="${it.desc||''}" oninput="quotItems[${i}].desc=this.value;calcQuot()" placeholder="Description"/></td><td style="width:65px"><input type="number" value="${it.qty||1}" min="1" oninput="quotItems[${i}].qty=+this.value||1;calcQuot()" style="width:65px;text-align:center"/></td><td style="width:100px"><input type="number" value="${it.rate||0}" oninput="quotItems[${i}].rate=+this.value||0;calcQuot()" style="width:100px;text-align:right"/></td><td style="width:90px;text-align:right;font-weight:600;padding:10px 8px">₹${fmt((it.qty||1)*(it.rate||0))}</td><td style="width:36px;text-align:center"><div class="del-btn" onclick="quotItems.splice(${i},1);renderQuotItems()">✕</div></td></tr>`;});
+  calcQuot();
+}
+function calcQuot(){const sub=quotItems.reduce((s,it)=>s+(it.qty||1)*(it.rate||0),0),gst=sub*.18;const qs=document.getElementById('quot-sub'),qg=document.getElementById('quot-gst-amt'),qt=document.getElementById('quot-grand');if(qs)qs.textContent='₹'+fmt(sub);if(qg)qg.textContent='₹'+fmt(gst);if(qt)qt.textContent='₹'+fmt(sub+gst);}
+async function saveQuotation(){
+  const q={number:document.getElementById('quot-number').value,customer:document.getElementById('quot-customer').value,mobile:document.getElementById('quot-mobile').value,site:document.getElementById('quot-site').value,validity:document.getElementById('quot-validity').value,items:JSON.parse(JSON.stringify(quotItems)),status:'Draft'};
+  if(!q.customer){toast('Customer required','warn');return;}
+  const idx=quotations.findIndex(x=>x.number===q.number);if(idx>=0)quotations[idx]=q;else quotations.push(q);
+  DB.set('quotations',quotations);
+  if(settings.url&&connStatus==='connected')try{await apiCall('saveQuotation',q);}catch{}
+  renderQuotList();toast('Quotation saved!','success');
+}
+function resetQuotation(){
+  quotItems=[{desc:'',qty:1,rate:0}];quotCounter++;DB.set('quotCounter',quotCounter);
+  document.getElementById('quot-number').value='DA-QOT-'+String(quotCounter).padStart(4,'0');
+  document.getElementById('quot-customer').value='';document.getElementById('quot-mobile').value='';document.getElementById('quot-site').value='';
+  renderQuotItems();
+}
+function renderQuotList(){
+  const tb=document.getElementById('quot-list-tbody');if(!tb)return;tb.innerHTML='';
+  quotations.forEach((q,i)=>{const s=(q.items||[]).reduce((s,it)=>s+(it.qty||1)*(it.rate||0),0)*1.18;tb.innerHTML+=`<tr><td><strong>${q.number}</strong></td><td>${q.customer}</td><td>₹${fmt(s)}</td><td class="td-light">${q.validity||'—'}</td><td>${badgeSt(q.status||'Draft')}</td><td><button class="btn btn-primary btn-sm" onclick="loadQuotation(${i})">Load</button></td></tr>`;});
+}
+function loadQuotation(i){const q=quotations[i];document.getElementById('quot-number').value=q.number;document.getElementById('quot-customer').value=q.customer||'';document.getElementById('quot-mobile').value=q.mobile||'';document.getElementById('quot-site').value=q.site||'';document.getElementById('quot-validity').value=q.validity||'';quotItems=JSON.parse(JSON.stringify(q.items||[]));renderQuotItems();}
+function convertToInvoice(){const cn=document.getElementById('quot-customer').value;if(!cn){toast('Quotation save karo pehle','warn');return;}showPage('invoice',document.querySelectorAll('.nav-item')[1]);setTimeout(()=>{document.getElementById('inv-address').value=document.getElementById('quot-site')?.value||'';invItems=quotItems.map(it=>({...it,gstPct:18}));renderItems();toast('Converted to invoice!','success');},200);}
+
+// ═══════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════
+function saveSettings(){
+  settings.name=document.getElementById('set-name').value;
+  settings.gst=document.getElementById('set-gst').value;
+  settings.address=document.getElementById('set-address').value;
+  settings.phone=document.getElementById('set-phone').value;
+  settings.email=document.getElementById('set-email').value;
+  settings.url=(document.getElementById('set-url').value||'').trim();
+  DB.set('settings',settings);toast('Settings saved!','success');
+}
+
+// ═══════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════
+async function apiCall(action,data={}){
+  if(!settings.url)return null;
+  const r=await fetch(settings.url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
+  return await r.json();
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>document.getElementById('loader').classList.remove('show'),1200);
+
+  // Date defaults
+  const today=new Date().toISOString().split('T')[0];
+  const id=document.getElementById('inv-date');if(id)id.value=today;
+  const qv=document.getElementById('quot-validity');if(qv){const d=new Date();d.setDate(d.getDate()+30);qv.value=d.toISOString().split('T')[0];}
+  const sd=document.getElementById('s-date');if(sd)sd.value=today;
+  const as=document.getElementById('amc-start');if(as)as.value=today;
+  const ae=document.getElementById('amc-end');if(ae){const d=new Date();d.setFullYear(d.getFullYear()+1);ae.value=d.toISOString().split('T')[0];}
+
+  // Settings restore
+  document.getElementById('set-name').value=settings.name||'DynaAircon';
+  document.getElementById('set-gst').value=settings.gst||'';
+  document.getElementById('set-address').value=settings.address||'';
+  document.getElementById('set-phone').value=settings.phone||'';
+  document.getElementById('set-email').value=settings.email||'';
+  if(settings.url)document.getElementById('set-url').value=settings.url;
+
+  // Init modules
+  renderDashboard();
+  initInvoice();
+  quotItems=[{desc:'',qty:1,rate:0}];renderQuotItems();
+  document.getElementById('quot-number').value='DA-QOT-'+String(quotCounter).padStart(4,'0');
+
+  // Connection monitor
+  if(settings.url){
+    setTimeout(()=>startConnectionMonitor(),1500);
+  }else{
+    setConnStatus('no-url');
+  }
+
+  // Window focus — recheck connection
+  window.addEventListener('focus',()=>{
+    if(settings.url&&connStatus!=='checking')checkConnection(true);
+  });
+  // Online/offline
+  window.addEventListener('online',()=>{if(settings.url){toast('Internet wapas aaya! Reconnecting...','info');checkConnection();}});
+  window.addEventListener('offline',()=>{setConnStatus('disconnected','❌ Internet band ho gaya!','Connection check karo');toast('Internet connection toot gaya!','error');});
+});
+</script>
+</body>
+</html>
